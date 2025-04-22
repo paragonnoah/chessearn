@@ -1,5 +1,5 @@
 name: chessearn
-description: A global chess platform
+description: A global chess platform with 1v1 gameplay.
 version: 1.0.0+1
 
 environment:
@@ -8,9 +8,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
   flutter_chess_board: ^1.0.0
-  http: ^0.13.6
-  shared_preferences: ^2.0.15
+  web_socket_channel: ^3.0.1
 
 dev_dependencies:
   flutter_test:
