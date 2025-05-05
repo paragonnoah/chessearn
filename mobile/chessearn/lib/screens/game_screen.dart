@@ -119,14 +119,14 @@ class _GameScreenState extends State<GameScreen> {
     }
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
-    final userId = jsonDecode(String.fromCharCodes(base64Decode(token.split('.')[1] + '==')))['sub'].toString();
+    final userId = jsonDecode(String.fromCharCodes(base64Decode(token!.split('.')[1] + '==')))['sub'].toString();
     _channel?.sink.add(jsonEncode({
       'event': 'join_game',
       'data': {'user_id': userId},
     }));
   }
 
-  void _makeMove(String move) {
+  Future<void> _makeMove(String move) async {
     if (_isOnline && _gameId != null) {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
