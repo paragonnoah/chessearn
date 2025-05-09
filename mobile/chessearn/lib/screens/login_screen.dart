@@ -24,32 +24,48 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = '';
     });
 
-    final response = await http.post(
-      Uri.parse('http://localhost:5000/api/users/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': _usernameController.text,
-        'password': _passwordController.text,
-      }),
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', data['access_token']);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const GameScreen()),
+    try {
+      final response = await http.post(
+        Uri.parse('https://chessearn.com/api/users/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': _usernameController.text,
+          'password': _passwordController.text,
+        }),
       );
-    } else {
+
       setState(() {
-        _errorMessage = jsonDecode(response.body)['message'];
+        _isLoading = false;
+      });
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access_token', data['access_token']);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const GameScreen()),
+        );
+      } else {
+        setState(() {
+          _errorMessage = jsonDecode(response.body)['message'] ?? 'Login failed';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Network error: $e';
       });
     }
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('access_token');
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
   }
 
   @override
@@ -120,15 +136,27 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 20),
               _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.blueAccent,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                        textStyle: const TextStyle(fontSize: 18),
-                      ),
-                      onPressed: _login,
-                      child: const Text('Log In'),
+                  : Column(
+                      children: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.blueAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                            textStyle: const TextStyle(fontSize: 18),
+                          ),
+                          onPressed: _login,
+                          child: const Text('Log In'),
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed: _logout,
+                          child: const Text(
+                            'Log out (for testing)',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ],
                     ),
               const SizedBox(height: 20),
               TextButton(
