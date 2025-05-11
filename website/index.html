@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChessEarn - Play Online</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chess.js and Chessboard.js CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/chess.js@0.13.4/dist/chess.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboard-js@1.0.0/css/chessboard-1.0.0.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chessboard-js@1.0.0/js/chessboard-1.0.0.min.js"></script>
+  <!-- Axios CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.7.7/dist/axios.min.js"></script>
+  <!-- React and Babel CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
+  <!-- Google Sign-In CDN -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom, #3B82F6, #FFFFFF);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .background-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('https://chessearn.com/static/chess-knight.png') no-repeat center center fixed;
+      background-size: contain;
+      opacity: 0.1;
+      z-index: -1;
+    }
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+    @media (max-width: 640px) {
+      .background-container {
+        background-size: 50%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background-container"></div>
+  <div class="content">
+    <div id="root"></div>
+  </div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Comprehensive list of country codes
+    const countryCodes = [
+      { code: '+93', country: 'Afghanistan' },
+      { code: '+355', country: 'Albania' },
+      { code: '+213', country: 'Algeria' },
+      { code: '+376', country: 'Andorra' },
+      { code: '+244', country: 'Angola' },
+      { code: '+1-268', country: 'Antigua and Barbuda' },
+      { code: '+54', country: 'Argentina' },
+      { code: '+374', country: 'Armenia' },
+      { code: '+61', country: 'Australia' },
+      { code: '+43', country: 'Austria' },
+      { code: '+994', country: 'Azerbaijan' },
+      { code: '+1-242', country: 'Bahamas' },
+      { code: '+973', country: 'Bahrain' },
+      { code: '+880', country: 'Bangladesh' },
+      { code: '+1-246', country: 'Barbados' },
+      { code: '+375', country: 'Belarus' },
+      { code: '+32', country: 'Belgium' },
+      { code: '+501', country: 'Belize' },
+      { code: '+229', country: 'Benin' },
+      { code: '+975', country: 'Bhutan' },
+      { code: '+591', country: 'Bolivia' },
+      { code: '+387', country: 'Bosnia and Herzegovina' },
+      { code: '+267', country: 'Botswana' },
+      { code: '+55', country: 'Brazil' },
+      { code: '+673', country: 'Brunei' },
+      { code: '+359', country: 'Bulgaria' },
+      { code: '+226', country: 'Burkina Faso' },
+      { code: '+257', country: 'Burundi' },
+      { code: '+855', country: 'Cambodia' },
+      { code: '+237', country: 'Cameroon' },
+      { code: '+1', country: 'Canada' },
+      { code: '+238', country: 'Cape Verde' },
+      { code: '+236', country: 'Central African Republic' },
+      { code: '+235', country: 'Chad' },
+      { code: '+56', country: 'Chile' },
+      { code: '+86', country: 'China' },
+      { code: '+57', country: 'Colombia' },
+      { code: '+269', country: 'Comoros' },
+      { code: '+242', country: 'Congo' },
+      { code: '+243', country: 'Congo, Democratic Republic of the' },
+      { code: '+506', country: 'Costa Rica' },
+      { code: '+225', country: "Côte d'Ivoire" },
+      { code: '+385', country: 'Croatia' },
+      { code: '+53', country: 'Cuba' },
+      { code: '+357', country: 'Cyprus' },
+      { code: '+420', country: 'Czech Republic' },
+      { code: '+45', country: 'Denmark' },
+      { code: '+253', country: 'Djibouti' },
+      { code: '+1-767', country: 'Dominica' },
+      { code: '+1-809', country: 'Dominican Republic' },
+      { code: '+593', country: 'Ecuador' },
+      { code: '+20', country: 'Egypt' },
+      { code: '+503', country: 'El Salvador' },
+      { code: '+240', country: 'Equatorial Guinea' },
+      { code: '+291', country: 'Eritrea' },
+      { code: '+372', country: 'Estonia' },
+      { code: '+251', country: 'Ethiopia' },
+      { code: '+679', country: 'Fiji' },
+      { code: '+358', country: 'Finland' },
+      { code: '+33', country: 'France' },
+      { code: '+241', country: 'Gabon' },
+      { code: '+220', country: 'Gambia' },
+      { code: '+995', country: 'Georgia' },
+      { code: '+49', country: 'Germany' },
+      { code: '+233', country: 'Ghana' },
+      { code: '+30', country: 'Greece' },
+      { code: '+1-473', country: 'Grenada' },
+      { code: '+502', country: 'Guatemala' },
+      { code: '+224', country: 'Guinea' },
+      { code: '+245', country: 'Guinea-Bissau' },
+      { code: '+592', country: 'Guyana' },
+      { code: '+509', country: 'Haiti' },
+      { code: '+504', country: 'Honduras' },
+      { code: '+852', country: 'Hong Kong' },
+      { code: '+36', country: 'Hungary' },
+      { code: '+354', country: 'Iceland' },
+      { code: '+91', country: 'India' },
+      { code: '+62', country: 'Indonesia' },
+      { code: '+98', country: 'Iran' },
+      { code: '+964', country: 'Iraq' },
+      { code: '+353', country: 'Ireland' },
+      { code: '+972', country: 'Israel' },
+      { code: '+39', country: 'Italy' },
+      { code: '+1-876', country: 'Jamaica' },
+      { code: '+81', country: 'Japan' },
+      { code: '+962', country: 'Jordan' },
+      { code: '+7', country: 'Kazakhstan' },
+      { code: '+254', country: 'Kenya' },
+      { code: '+686', country: 'Kiribati' },
+      { code: '+850', country: 'Korea, North' },
+      { code: '+82', country: 'Korea, South' },
+      { code: '+965', country: 'Kuwait' },
+      { code: '+996', country: 'Kyrgyzstan' },
+      { code: '+856', country: 'Laos' },
+      { code: '+371', country: 'Latvia' },
+      { code: '+961', country: 'Lebanon' },
+      { code: '+266', country: 'Lesotho' },
+      { code: '+231', country: 'Liberia' },
+      { code: '+218', country: 'Libya' },
+      { code: '+423', country: 'Liechtenstein' },
+      { code: '+370', country: 'Lithuania' },
+      { code: '+352', country: 'Luxembourg' },
+      { code: '+853', country: 'Macau' },
+      { code: '+389', country: 'Macedonia' },
+      { code: '+261', country: 'Madagascar' },
+      { code: '+265', country: 'Malawi' },
+      { code: '+60', country: 'Malaysia' },
+      { code: '+960', country: 'Maldives' },
+      { code: '+223', country: 'Mali' },
+      { code: '+356', country: 'Malta' },
+      { code: '+692', country: 'Marshall Islands' },
+      { code: '+222', country: 'Mauritania' },
+      { code: '+230', country: 'Mauritius' },
+      { code: '+52', country: 'Mexico' },
+      { code: '+691', country: 'Micronesia' },
+      { code: '+373', country: 'Moldova' },
+      { code: '+377', country: 'Monaco' },
+      { code: '+976', country: 'Mongolia' },
+      { code: '+382', country: 'Montenegro' },
+      { code: '+212', country: 'Morocco' },
+      { code: '+258', country: 'Mozambique' },
+      { code: '+95', country: 'Myanmar' },
+      { code: '+264', country: 'Namibia' },
+      { code: '+674', country: 'Nauru' },
+      { code: '+977', country: 'Nepal' },
+      { code: '+31', country: 'Netherlands' },
+      { code: '+64', country: 'New Zealand' },
+      { code: '+505', country: 'Nicaragua' },
+      { code: '+227', country: 'Niger' },
+      { code: '+234', country: 'Nigeria' },
+      { code: '+47', country: 'Norway' },
+      { code: '+968', country: 'Oman' },
+      { code: '+92', country: 'Pakistan' },
+      { code: '+680', country: 'Palau' },
+      { code: '+970', country: 'Palestine' },
+      { code: '+507', country: 'Panama' },
+      { code: '+675', country: 'Papua New Guinea' },
+      { code: '+595', country: 'Paraguay' },
+      { code: '+51', country: 'Peru' },
+      { code: '+63', country: 'Philippines' },
+      { code: '+48', country: 'Poland' },
+      { code: '+351', country: 'Portugal' },
+      { code: '+974', country: 'Qatar' },
+      { code: '+40', country: 'Romania' },
+      { code: '+7', country: 'Russia' },
+      { code: '+250', country: 'Rwanda' },
+      { code: '+1-869', country: 'Saint Kitts and Nevis' },
+      { code: '+1-758', country: 'Saint Lucia' },
+      { code: '+1-784', country: 'Saint Vincent and the Grenadines' },
+      { code: '+685', country: 'Samoa' },
+      { code: '+378', country: 'San Marino' },
+      { code: '+239', country: 'Sao Tome and Principe' },
+      { code: '+966', country: 'Saudi Arabia' },
+      { code: '+221', country: 'Senegal' },
+      { code: '+381', country: 'Serbia' },
+      { code: '+248', country: 'Seychelles' },
+      { code: '+232', country: 'Sierra Leone' },
+      { code: '+65', country: 'Singapore' },
+      { code: '+421', country: 'Slovakia' },
+      { code: '+386', country: 'Slovenia' },
+      { code: '+677', country: 'Solomon Islands' },
+      { code: '+252', country: 'Somalia' },
+      { code: '+27', country: 'South Africa' },
+      { code: '+211', country: 'South Sudan' },
+      { code: '+34', country: 'Spain' },
+      { code: '+94', country: 'Sri Lanka' },
+      { code: '+249', country: 'Sudan' },
+      { code: '+597', country: 'Suriname' },
+      { code: '+268', country: 'Swaziland' },
+      { code: '+46', country: 'Sweden' },
+      { code: '+41', country: 'Switzerland' },
+      { code: '+963', country: 'Syria' },
+      { code: '+886', country: 'Taiwan' },
+      { code: '+992', country: 'Tajikistan' },
+      { code: '+255', country: 'Tanzania' },
+      { code: '+66', country: 'Thailand' },
+      { code: '+228', country: 'Togo' },
+      { code: '+676', country: 'Tonga' },
+      { code: '+1-868', country: 'Trinidad and Tobago' },
+      { code: '+216', country: 'Tunisia' },
+      { code: '+90', country: 'Turkey' },
+      { code: '+993', country: 'Turkmenistan' },
+      { code: '+688', country: 'Tuvalu' },
+      { code: '+256', country: 'Uganda' },
+      { code: '+380', country: 'Ukraine' },
+      { code: '+971', country: 'United Arab Emirates' },
+      { code: '+44', country: 'United Kingdom' },
+      { code: '+1', country: 'United States' },
+      { code: '+598', country: 'Uruguay' },
+      { code: '+998', country: 'Uzbekistan' },
+      { code: '+678', country: 'Vanuatu' },
+      { code: '+58', country: 'Venezuela' },
+      { code: '+84', country: 'Vietnam' },
+      { code: '+967', country: 'Yemen' },
+      { code: '+260', country: 'Zambia' },
+      { code: '+263', country: 'Zimbabwe' },
+    ].sort((a, b) => a.country.localeCompare(b.country)); // Sort alphabetically
+
+    // Navigation Component
+    const Navigation = ({ user, setUser, setCurrentPage }) => (
+      <nav className="bg-blue-600 p-4 flex justify-between items-center">
+        <h1 className="text-white text-2xl font-bold">ChessEarn</h1>
+        {user ? (
+          <div className="flex space-x-4">
+            <button
+              className="text-white hover:underline"
+              onClick={() => setCurrentPage('game')}
+            >
+              Play
+            </button>
+            <button
+              className="text-white hover:underline"
+              onClick={() => {
+                localStorage.removeItem('access_token');
+                setUser(null);
+                setCurrentPage('login');
+              }}
+            >
+              Log Out
+            </button>
+          </div>
+        ) : (
+          <div className="flex space-x-4">
+            <button
+              className="text-white hover:underline"
+              onClick={() => setCurrentPage('login')}
+            >
+              Log In
+            </button>
+            <button
+              className="text-white hover:underline"
+              onClick={() => setCurrentPage('signup')}
+            >
+              Sign Up
+            </button>
+          </div>
+        )}
+      </nav>
+    );
+
+    // Signup Component
+    const Signup = ({ setCurrentPage, setUser }) => {
+      const [username, setUsername] = useState('');
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [countryCode, setCountryCode] = useState('+1');
+      const [phoneNumber, setPhoneNumber] = useState('');
+      const [error, setError] = useState('');
+
+      const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+
+      const handleSignup = async () => {
+        if (!validateEmail(email)) {
+          setError('Please enter a valid email address');
+          return;
+        }
+        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+        if (!phoneNumber.match(/^\d+$/)) {
+          setError('Phone number must contain only digits');
+          return;
+        }
+        try {
+          const response = await axios.post('https://chessearn.com/api/users/register', {
+            username,
+            email,
+            password,
+            phone_number: fullPhoneNumber,
+          });
+          if (response.data.message.includes('verify phone')) {
+            setCurrentPage('verify');
+          } else {
+            localStorage.setItem('access_token', response.data.access_token);
+            setUser({ username });
+            setCurrentPage('game');
+          }
+        } catch (err) {
+          setError(err.response?.data?.message || 'Signup failed');
+        }
+      };
+
+      return (
+        <div className="flex flex-col items-center mt-10 p-6 bg-white bg-opacity-30 rounded-lg shadow-lg max-w-md mx-auto">
+          <h2 className="text-3xl font-bold text-white mb-6">Join ChessEarn</h2>
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+          />
+          <div className="flex w-full mb-4">
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="p-3 rounded-l-lg bg-white bg-opacity-50 text-white border-none"
+            >
+              {countryCodes.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.country} ({item.code})
+                </option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className="w-full p-3 rounded-r-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+            />
+          </div>
+          {error && <p className="text-red-500 mb-4">{error}</p>}
+          <button
+            onClick={handleSignup}
+            className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 mb-4"
+          >
+            Sign Up
+          </button>
+          <div className="flex space-x-4 mb-4">
+            <button
+              onClick={() => {
+                window.location.href = 'https://chessearn.com/api/auth/google';
+              }}
+              className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 flex items-center"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1.01.68-2.3 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C4.01 20.07 7.77 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.66-2.84z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.77 1 4.01 3.93 2.18 7.07l2.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Sign up with Google
+            </button>
+            <button
+              onClick={() => {
+                window.location.href = 'https://chessearn.com/api/auth/x';
+              }}
+              className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 flex items-center"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <path fill="#000000" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Sign up with X
+            </button>
+          </div>
+          <button
+            onClick={() => setCurrentPage('login')}
+            className="text-white mt-4 hover:underline"
+          >
+            Already have an account? Log in
+          </button>
+        </div>
+      );
+    };
+
+    // Verify Component
+    const Verify = ({ setCurrentPage, setUser }) => {
+      const [countryCode, setCountryCode] = useState('+1');
+      const [phoneNumber, setPhoneNumber] = useState('');
+      const [verificationCode, setVerificationCode] = useState('');
+      const [error, setError] = useState('');
+
+      const handleSendVerification = async () => {
+        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+        if (!phoneNumber.match(/^\d+$/)) {
+          setError('Phone number must contain only digits');
+          return;
+        }
+        try {
+          await axios.post('https://chessearn.com/api/users/send-verification', { phone_number: fullPhoneNumber });
+          setError('Verification code sent (check mock code in response)');
+        } catch (err) {
+          setError(err.response?.data?.message || 'Failed to send code');
+        }
+      };
+
+      const handleVerify = async () => {
+        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+        try {
+          const response = await axios.post('https://chessearn.com/api/users/verify-phone', {
+            phone_number: fullPhoneNumber,
+            verification_code: verificationCode,
+          });
+          setError(response.data.message);
+          if (response.data.message === 'Phone verified successfully') {
+            setCurrentPage('login');
+          }
+        } catch (err) {
+          setError(err.response?.data?.message || 'Verification failed');
+        }
+      };
+
+      return (
+        <div className="flex flex-col items-center mt-10 p-6 bg-white bg-opacity-30 rounded-lg shadow-lg max-w-md mx-auto">
+          <h2 className="text-3xl font-bold text-white mb-6">Verify Phone Number</h2>
+          <div className="flex w-full mb-4">
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="p-3 rounded-l-lg bg-white bg-opacity-50 text-white border-none"
+            >
+              {countryCodes.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.country} ({item.code})
+                </option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className="w-full p-3 rounded-r-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+            />
+          </div>
+          <button
+            onClick={handleSendVerification}
+            className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 mb-4"
+          >
+            Send Verification Code
+          </button>
+          <input
+            type="text"
+            placeholder="Verification Code"
+            value={verificationCode}
+            onChange={(e) => setVerificationCode(e.target.value)}
+            className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+          />
+          <button
+            onClick={handleVerify}
+            className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 mb-4"
+          >
+            Verify
+          </button>
+          {error && <p className="text-red-500 mb-4">{error}</p>}
+          <button
+            onClick={() => setCurrentPage('signup')}
+            className="text-white mt-4 hover:underline"
+          >
+            Back to Signup
+          </button>
+        </div>
+      );
+    };
+
+    // Login Component
+    const Login = ({ setCurrentPage, setUser }) => {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [reenteredPassword, setReenteredPassword] = useState('');
+      const [countryCode, setCountryCode] = useState('+1');
+      const [phoneNumber, setPhoneNumber] = useState('');
+      const [verificationCode, setVerificationCode] = useState('');
+      const [error, setError] = useState('');
+      const [showVerify, setShowVerify] = useState(false);
+
+      const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+
+      const handleLogin = async () => {
+        if (!validateEmail(email)) {
+          setError('Please enter a valid email address');
+          return;
+        }
+        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+        if (!phoneNumber.match(/^\d+$/)) {
+          setError('Phone number must contain only digits');
+          return;
+        }
+        try {
+          const response = await axios.post('https://chessearn.com/api/users/login', {
+            email,
+            password,
+            reentered_password: reenteredPassword,
+            phone_number: fullPhoneNumber,
+          });
+          localStorage.setItem('access_token', response.data.access_token);
+          setUser({ email }); // Changed to email for consistency
+          setCurrentPage('game');
+        } catch (err) {
+          setError(err.response?.data?.message || 'Login failed');
+          if (err.response?.data?.message === 'Phone number not verified') {
+            setShowVerify(true);
+          }
+        }
+      };
+
+      const handleSendVerification = async () => {
+        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+        try {
+          await axios.post('https://chessearn.com/api/users/send-verification', { phone_number: fullPhoneNumber });
+          setError('Verification code sent (check mock code in response)');
+        } catch (err) {
+          setError(err.response?.data?.message || 'Failed to send code');
+        }
+      };
+
+      const handleVerify = async () => {
+        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+        try {
+          const response = await axios.post('https://chessearn.com/api/users/verify-phone', {
+            phone_number: fullPhoneNumber,
+            verification_code: verificationCode,
+          });
+          setError(response.data.message);
+          if (response.data.message === 'Phone verified successfully') {
+            handleLogin();
+          }
+        } catch (err) {
+          setError(err.response?.data?.message || 'Verification failed');
+        }
+      };
+
+      return (
+        <div className="flex flex-col items-center mt-10 p-6 bg-white bg-opacity-30 rounded-lg shadow-lg max-w-md mx-auto">
+          <h2 className="text-3xl font-bold text-white mb-6">Log In to ChessEarn</h2>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+          />
+          <input
+            type="password"
+            placeholder="Re-enter Password"
+            value={reenteredPassword}
+            onChange={(e) => setReenteredPassword(e.target.value)}
+            className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+          />
+          <div className="flex w-full mb-4">
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="p-3 rounded-l-lg bg-white bg-opacity-50 text-white border-none"
+            >
+              {countryCodes.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.country} ({item.code})
+                </option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className="w-full p-3 rounded-r-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+            />
+          </div>
+          {error && <p className="text-red-500 mb-4">{error}</p>}
+          {!showVerify ? (
+            <>
+              <button
+                onClick={handleLogin}
+                className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 mb-4"
+              >
+                Log In
+              </button>
+              <div className="flex space-x-4 mb-4">
+                <button
+                  onClick={() => {
+                    window.location.href = 'https://chessearn.com/api/auth/google';
+                  }}
+                  className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 flex items-center"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1.01.68-2.3 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C4.01 20.07 7.77 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.66-2.84z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.77 1 4.01 3.93 2.18 7.07l2.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  Sign in with Google
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.href = 'https://chessearn.com/api/auth/x';
+                  }}
+                  className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 flex items-center"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                    <path fill="#000000" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                  Sign in with X
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                placeholder="Verification Code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                className="w-full p-3 mb-4 rounded-lg bg-white bg-opacity-50 text-white placeholder-white placeholder-opacity-70 border-none"
+              />
+              <button
+                onClick={handleSendVerification}
+                className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 mb-4"
+              >
+                Resend Code
+              </button>
+              <button
+                onClick={handleVerify}
+                className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 mb-4"
+              >
+                Verify
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setCurrentPage('signup')}
+            className="text-white mt-4 hover:underline"
+          >
+            Don’t have an account? Sign up
+          </button>
+        </div>
+      );
+    };
+
+    // Game Component
+    const Game = ({ user }) => {
+      const [gameStatus, setGameStatus] = useState('White to move');
+      const [paymentMessage, setPaymentMessage] = useState('');
+
+      useEffect(() => {
+        const game = new Chess();
+        const board = Chessboard('board', {
+          draggable: true,
+          position: 'start',
+          onDragStart: (source, piece, position, orientation) => {
+            if (game.game_over()) return false;
+            if (piece.search(/^b/) !== -1 && game.turn() === 'w') return false;
+            if (piece.search(/^w/) !== -1 && game.turn() === 'b') return false;
+          },
+          onDrop: (source, target) => {
+            const move = game.move({
+              from: source,
+              to: target,
+              promotion: 'q',
+            });
+            if (move === null) return 'snapback';
+            updateGameStatus(game);
+          },
+          onSnapEnd: () => {
+            board.position(game.fen());
+          },
+        });
+
+        const updateGameStatus = (game) => {
+          if (game.in_checkmate()) {
+            setGameStatus('Checkmate!');
+          } else if (game.in_stalemate()) {
+            setGameStatus('Stalemate!');
+          } else if (game.in_check()) {
+            setGameStatus('Check!');
+          } else {
+            setGameStatus(`${game.turn() === 'w' ? 'White' : 'Black'} to move`);
+          }
+        };
+
+        return () => board.destroy();
+      }, []);
+
+      const handleReset = () => {
+        window.location.reload();
+      };
+
+      const handleDeposit = async () => {
+        setPaymentMessage('Processing...');
+        try {
+          const token = localStorage.getItem('access_token');
+          const userId = token.split('_').last;
+          const response = await axios.post('https://chessearn.com/api/payments/deposit', {
+            amount: 100,
+            method: 'stripe',
+            user_id: userId,
+          });
+          setPaymentMessage('Deposit successful!');
+        } catch (err) {
+          setPaymentMessage(err.response?.data?.message || 'Deposit failed');
+        }
+      };
+
+      return (
+        <div className="flex flex-col items-center mt-10 p-6">
+          <h2 className="text-3xl font-bold text-white mb-6">Play ChessEarn</h2>
+          <div id="board" className="mb-6" style={{ width: '400px', maxWidth: '90vw' }}></div>
+          <p className="text-white text-lg font-bold mb-4">{gameStatus}</p>
+          <div className="flex space-x-4">
+            <button
+              onClick={handleReset}
+              className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100"
+            >
+              New Game
+            </button>
+            <button
+              onClick={handleDeposit}
+              className="bg-white text-blue-600 font-bold py-3 px-6 rounded-lg hover:bg-blue-100"
+            >
+              Deposit Funds
+            </button>
+          </div>
+          {paymentMessage && <p className="text-red-500 mt-4">{paymentMessage}</p>}
+        </div>
+      );
+    };
+
+    // Main App Component
+    const App = () => {
+      const [currentPage, setCurrentPage] = useState('login');
+      const [user, setUser] = useState(null);
+
+      useEffect(() => {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          setUser({ email: 'User' }); // Changed to email for consistency
+          setCurrentPage('game');
+        }
+      }, []);
+
+      return (
+        <div>
+          <Navigation user={user} setUser={setUser} setCurrentPage={setCurrentPage} />
+          {currentPage === 'signup' && <Signup setCurrentPage={setCurrentPage} setUser={setUser} />}
+          {currentPage === 'login' && <Login setCurrentPage={setCurrentPage} setUser={setUser} />}
+          {currentPage === 'verify' && <Verify setCurrentPage={setCurrentPage} setUser={setUser} />}
+          {currentPage === 'game' && user && <Game user={user} />}
+        </div>
+      );
+    };
+
+    // Render the App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
