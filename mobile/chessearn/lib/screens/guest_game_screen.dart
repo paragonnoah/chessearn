@@ -2,26 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_chess_board/flutter_chess_board.dart';
 import 'package:chess/chess.dart' as chess;
 import 'package:chessearn/screens/home_screen.dart';
-import 'package:chessearn/screens/profile_screen.dart';
-import 'package:chessearn/services/api_service.dart';
 import 'package:chessearn/theme.dart';
 
-class GameScreen extends StatefulWidget {
-  final String? userId;
-
-  const GameScreen({super.key, required this.userId});
+class GuestGameScreen extends StatefulWidget {
+  const GuestGameScreen({super.key});
 
   @override
-  _GameScreenState createState() => _GameScreenState();
+  _GuestGameScreenState createState() => _GuestGameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GuestGameScreenState extends State<GuestGameScreen> {
   ChessBoardController controller = ChessBoardController();
   String gameStatus = 'White to move';
   List<String> moveHistory = [];
-  bool showLegalMoves = true;
-  String? selectedSquare;
-  List<String> legalDestinations = [];
+  bool showLegalMoves = true; // State for toggling move indicators
+  String? selectedSquare; // Use String for algebraic notation (e.g., 'e2')
+  List<String> legalDestinations = []; // Store legal destination squares
 
   @override
   void initState() {
@@ -32,7 +28,7 @@ class _GameScreenState extends State<GameScreen> {
 
   void _checkGameState() {
     setState(() {
-      final game = controller.game as chess.Chess;
+      final game = controller.game;
       if (game.in_checkmate) {
         gameStatus = 'Checkmate!';
       } else if (game.in_stalemate) {
@@ -43,30 +39,13 @@ class _GameScreenState extends State<GameScreen> {
         gameStatus = '${game.turn == chess.Color.WHITE ? 'White' : 'Black'} to move';
       }
 
-      final moveList = game.moves().map((move) => move.toString()).toList();
-      if (moveList.isNotEmpty) {
-        moveHistory = moveList.reversed.toList();
-      } else {
-        moveHistory = [];
-      }
+     final moveList = game.moves();
+if (moveList.every((move) => move is String)) {
+  moveHistory = (moveList as List<String>).reversed.toList();
+} else {
+  moveHistory = [];
+}
     });
-
-    if (widget.userId != null) {
-      final moveList = controller.game.moves().map((move) => move.toString()).toList();
-      if (moveList.isNotEmpty) {
-        final lastMove = moveList.last;
-        ApiService.postGameMove(lastMove).catchError((e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to sync move: $e')),
-          );
-        });
-      }
-    }
-  }
-
-  Future<void> _logout() async {
-    await ApiService.logout();
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
   }
 
   void _resetGame() {
@@ -83,7 +62,7 @@ class _GameScreenState extends State<GameScreen> {
   void _undoMove() {
     setState(() {
       if (moveHistory.isNotEmpty) {
-        final game = controller.game as chess.Chess;
+        final game = controller.game;
         game.undo();
         moveHistory.removeLast();
         selectedSquare = null;
@@ -95,9 +74,11 @@ class _GameScreenState extends State<GameScreen> {
 
   void _updateLegalMoves() {
     if (showLegalMoves && selectedSquare != null) {
-      final game = controller.game as chess.Chess;
+      final game = controller.game;
       final moves = game.generate_moves({'square': selectedSquare}) as List<Map>;
-      legalDestinations = moves.map((move) => move['to'].toString()).toList();
+      legalDestinations = moves.map((move) {
+        return move['to'] as String;
+      }).toList();
       setState(() {});
     } else {
       legalDestinations.clear();
@@ -122,6 +103,7 @@ class _GameScreenState extends State<GameScreen> {
         ),
         child: Column(
           children: [
+            // Navigation Bar
             Container(
               padding: const EdgeInsets.all(16.0),
               color: ChessEarnTheme.themeColors['brand-dark'],
@@ -129,7 +111,7 @@ class _GameScreenState extends State<GameScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'ChessEarn',
+                    'ChessEarn (Guest)',
                     style: TextStyle(
                       color: ChessEarnTheme.themeColors['text-light'],
                       fontSize: 24,
@@ -148,39 +130,26 @@ class _GameScreenState extends State<GameScreen> {
                         onPressed: () {},
                         child: Text('Bet', style: TextStyle(color: ChessEarnTheme.themeColors['brand-accent'])),
                       ),
-                      TextButton(
-                        onPressed: widget.userId != null
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => ProfileScreen(userId: widget.userId!)),
-                                );
-                              }
-                            : null,
-                        child: Text('Profile', style: TextStyle(color: ChessEarnTheme.themeColors['brand-accent'])),
-                      ),
+                      // No Profile button for guests
                       ElevatedButton(
-                        onPressed: widget.userId != null ? _logout : null,
-                        child: const Text('Logout'),
+                        onPressed: () {
+                          // Guest logout can simply go to HomeScreen
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
+                        },
+                        child: const Text('Exit'),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            if (widget.userId == null)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  'Playing as Guest - Sign up to save progress!',
-                  style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'], fontSize: 16),
-                ),
-              ),
+            // Main Content
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Toggle for showing legal moves
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       child: Row(
@@ -210,6 +179,7 @@ class _GameScreenState extends State<GameScreen> {
                         ],
                       ),
                     ),
+                    // Chessboard with legal move indicators
                     Container(
                       margin: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
                       decoration: BoxDecoration(
@@ -230,8 +200,8 @@ class _GameScreenState extends State<GameScreen> {
                             onMove: () {
                               _checkGameState();
                               if (showLegalMoves) {
-                                final game = controller.game as chess.Chess;
-                                final moves = game.moves().map((move) => move.toString()).toList();
+                                final game = controller.game;
+                                final moves = game.moves();
                                 if (moves.isNotEmpty) {
                                   final lastMove = moves.last;
                                   if (lastMove.length >= 2) {
@@ -265,6 +235,7 @@ class _GameScreenState extends State<GameScreen> {
                         ],
                       ),
                     ),
+                    // Game Status
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
@@ -272,6 +243,7 @@ class _GameScreenState extends State<GameScreen> {
                         style: TextStyle(fontSize: 18, color: ChessEarnTheme.themeColors['text-light']),
                       ),
                     ),
+                    // Action Buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -287,6 +259,7 @@ class _GameScreenState extends State<GameScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
+                    // Move History
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(

@@ -8,10 +8,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_chess_board: ^1.0.1  # Use stable version
+  chess: ^0.7.0              # Explicitly add compatible chess version
   http: ^1.2.2
   shared_preferences: ^2.3.2
-  flutter_chess_board: ^1.0.0
-  web_socket_channel: ^3.0.1
+  country_code_picker: ^3.0.0
+  google_sign_in: ^6.2.1
+  intl: ^0.18.1
+  cookie_jar: ^4.0.8
+  path_provider: ^2.1.5
+  image_picker: ^1.0.0 
+  cupertino_icons: ^1.0.2
 
 dev_dependencies:
   flutter_test:
@@ -19,3 +26,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/

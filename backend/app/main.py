@@ -203,24 +203,54 @@ def verify_phone():
 @app.route('/api/users/login', methods=['POST'])
 def login():
     data = request.get_json()
-    email = data.get('email')
+    login_type = data.get('login_type')  # 'phone', 'email', or 'username'
+    credential = data.get('credential')  # phone_number, email, or username value
     password = data.get('password')
     reentered_password = data.get('reentered_password')
-    phone_number = data.get('phone_number')
-    if not email or not password or not reentered_password or not phone_number:
+    phone_number = data.get('phone_number')  # Required only if login_type is not 'phone'
+
+    if not login_type or not credential or not password or not reentered_password:
         return jsonify({'message': 'Missing required fields'}), 400
+
     if password != reentered_password:
         return jsonify({'message': 'Passwords do not match'}), 400
+
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT id, password, is_verified FROM users WHERE email = %s AND phone_number = %s', (email, phone_number))
+
+        if login_type == 'phone':
+            phone_number = credential
+            query = 'SELECT id, password, is_verified FROM users WHERE phone_number = %s'
+            params = (phone_number,)
+        elif login_type == 'email':
+            query = 'SELECT id, password, is_verified FROM users WHERE email = %s'
+            params = (credential,)
+        elif login_type == 'username':
+            query = 'SELECT id, password, is_verified FROM users WHERE username = %s'
+            params = (credential,)
+        else:
+            return jsonify({'message': 'Invalid login type'}), 400
+
+        cur.execute(query, params)
         user = cur.fetchone()
+
+        # If login_type is not 'phone', we need to check phone_number for verification
+        if login_type != 'phone' and phone_number:
+            cur.execute('SELECT is_verified FROM users WHERE phone_number = %s', (phone_number,))
+            phone_verified = cur.fetchone()
+            is_verified = user[2] if user else False
+            is_phone_verified = phone_verified[0] if phone_verified else False
+        else:
+            is_verified = user[2] if user else False
+            is_phone_verified = is_verified  # For phone login, it's the same
+
         cur.close()
         conn.close()
-        if user and user[1] == password and user[2]:
+
+        if user and user[1] == password and is_verified and is_phone_verified:
             return jsonify({'access_token': f'mock_token_{user[0]}'}), 200
-        elif user and not user[2]:
+        elif user and not is_phone_verified:
             return jsonify({'message': 'Phone number not verified'}), 401
         return jsonify({'message': 'Invalid credentials'}), 401
     except psycopg2.Error as e:
