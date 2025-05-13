@@ -1,16 +1,16 @@
-"""initial migration with user
+"""updated user added, game and bet history model
 
-Revision ID: 265c4e7647ac
+Revision ID: 0020ddb462ad
 Revises: 
-Create Date: 2025-05-12 00:13:09.752113
+Create Date: 2025-05-13 13:47:07.622507
 
 """
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '265c4e7647ac'
+revision = '0020ddb462ad'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -31,9 +31,14 @@ def upgrade():
     sa.Column('last_name', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=120), nullable=False),
     sa.Column('username', sa.String(length=50), nullable=False),
-    sa.Column('phone_number', sa.String(length=15), nullable=False),
-    sa.Column('password_hash', sa.String(length=128), nullable=False),
-    sa.Column('role', sa.Enum('ADMIN', 'PLAYER', 'DEVELOPER', name='userrole'), nullable=False),
+    sa.Column('phone_number', sa.String(length=20), nullable=False),
+    sa.Column('password_hash', sa.String(length=256), nullable=False),
+    sa.Column('role', postgresql.ENUM('ADMIN', 'PLAYER', 'DEVELOPER', name='userrole'), nullable=False),
+    sa.Column('ranking', sa.Integer(), nullable=True),
+    sa.Column('photo_url', sa.String(length=255), nullable=True),
+    sa.Column('wallet_balance', sa.Float(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('is_verified', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('users', schema=None) as batch_op:

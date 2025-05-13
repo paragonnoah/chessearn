@@ -69,11 +69,15 @@ def create_app(config_class=DevelopmentConfig):
 
     # Register blueprints
     from app.routes.auth import auth_bp
-    from app.routes.admin.manage_users import manage_users_bp
     app.register_blueprint(auth_bp, url_prefix="/auth")
+
+    from app.routes.admin.manage_users import manage_users_bp
     app.register_blueprint(manage_users_bp, url_prefix="/admin/users")
 
-    from app.models import user, token_blacklist
+    from app.routes.profile import profile_bp
+    app.register_blueprint(profile_bp, url_prefix='/profile')
+
+    from app.models import user, token_blacklist, bet, game
 
     return app
 

@@ -28,8 +28,8 @@ curl -X POST https://v2.chessearn.com/auth/register \
 curl -X POST https://v2.chessearn.com/auth/login \
 -H "Content-Type: application/json" \
 -d '{
-    "identifier": "johndoe",
-    "password": "securepassword"
+    "identifier": "shamaria",
+    "password": "AlphonsoChampe"
 }' \
 -c cookies.txt
 ```
@@ -83,3 +83,4 @@ curl -X POST https://v2.chessearn.com/auth/logout \
 - **Assumptions**: The server runs on `v2.chessearn.com`, and CSRF protection is enabled in the Flask-JWT-Extended configuration (common default when using cookies).
 
 These `curl` statements should work with the provided authentication endpoints, assuming a standard Flask-JWT-Extended setup. Let me know if you need further clarification!
+
