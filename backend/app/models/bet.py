@@ -1,13 +1,16 @@
 from app import db
 import uuid
 
+
 class Bet(db.Model):
     __tablename__ = "bets"
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
     game_id = db.Column(db.String(36), db.ForeignKey("games.id"), nullable=False)
-    predicted_winner_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    predicted_winner_id = db.Column(
+        db.String(36), db.ForeignKey("users.id"), nullable=True
+    )
     amount = db.Column(db.Float, nullable=False)
     won = db.Column(db.Boolean, default=False)
 
@@ -22,7 +25,7 @@ class Bet(db.Model):
             "game_id": self.game_id,
             "predicted_winner_id": self.predicted_winner_id,
             "amount": self.amount,
-            "won": self.won
+            "won": self.won,
         }
 
     def __repr__(self):

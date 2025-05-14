@@ -4,6 +4,7 @@ from app.models.user import User, UserRole
 from email_validator import validate_email, EmailNotValidError
 import phonenumbers
 
+
 def is_valid_phone_number(phone):
     try:
         parsed = phonenumbers.parse(phone, None)

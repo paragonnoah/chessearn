@@ -2,12 +2,14 @@ from flask import current_app
 from app import db
 from app.models.user import User
 
+
 def get_user_profile(user_id):
     """Retrieve a user's profile by their ID."""
     user = User.query.get(user_id)
     if not user:
         return None, "User not found"
     return user, None  # Return User object instead of dict
+
 
 def update_user_photo(user_id, photo_filename):
     """Update a user's profile photo filename."""
