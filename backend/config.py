@@ -27,7 +27,9 @@ class Config:
     # CORS: wildcard for now
     CORS_ORIGINS = [
         "http://localhost:5173",  # Vite dev
-        "http://192.168.100.8:5173",  # Your LAN IP + Vite
+        "http://41.90.176.141",
+        "https://41.90.176.141",
+        "https://chessearn.com",  # Your LAN IP + Vite
     ]
 
     # Rate limiting defaults
@@ -42,7 +44,8 @@ class DevelopmentConfig(Config):
     JWT_COOKIE_SAMESITE = "Lax"
     CORS_ORIGINS = [
         "http://localhost:5173",  # Vite dev
-        "http://192.168.100.8:5173",  # Your LAN IP + Vite
+        "http://192.168.100.8:5173",
+        "https://chessearn.com",  # Your LAN IP + Vite
     ]  # allow all origins in dev
 
 
