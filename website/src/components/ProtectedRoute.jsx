@@ -1,29 +1,34 @@
-
-/*
-  File: src/components/ProtectedRoute.jsx
-  Guards routes based on authentication and optional role.
-*/
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-/**
- * @param {string[]} [roles]  List of roles allowed (e.g. ['admin']).
- */
 const ProtectedRoute = ({ roles }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const [debouncedRedirect, setDebouncedRedirect] = useState(null);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      const timer = setTimeout(() => {
+        setDebouncedRedirect(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, user, location.pathname]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
-  if (!user) {
-    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  if (debouncedRedirect) {
+    return <Navigate to={debouncedRedirect} replace />;
   }
 
-  if (roles && !roles.includes(user.role)) {
-    // Optionally redirect or show "Not authorized"
+  if (roles && user && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 

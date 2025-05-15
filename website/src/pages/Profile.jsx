@@ -70,7 +70,10 @@ function Profile() {
                 <p><strong>Phone:</strong> {profile.phone_number}</p>
                 <p><strong>Role:</strong> {profile.role}</p>
                 <p><strong>Ranking:</strong> {profile.ranking}</p>
-                <p><strong>Wallet Balance:</strong> ${profile.wallet_balance.toFixed(2)}</p>
+                <p><strong>Wallet Balance:</strong>{' '} 
+                {profile.wallet_balance != null ? `$${profile.wallet_balance.toFixed(2)}` : '0.0'}
+                </p>
+
                 <p><strong>Active:</strong> {profile.is_active ? 'Yes' : 'No'}</p>
                 <p><strong>Verified:</strong> {profile.is_verified ? 'Yes' : 'No'}</p>
               </div>

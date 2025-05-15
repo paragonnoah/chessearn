@@ -10,7 +10,7 @@ const apiClient = axios.create({
   },
 });
 
-// Attach CSRF headers to mutating requests / refresh
+// Attach CSRF headers to mutating requests
 apiClient.interceptors.request.use(config => {
   config.headers = {
     ...config.headers,
@@ -22,38 +22,92 @@ apiClient.interceptors.request.use(config => {
 // Queue up concurrent 401s so we only call /auth/refresh once
 let isRefreshing = false;
 let pendingRequests = [];
+let refreshFailed = false;
+let lastRefresh = 0;
+const REFRESH_COOLDOWN = 1000; // 1 second
+
+// Navigation and error handlers
+let navigateFn = null;
+let onError = null;
+
+export const setNavigate = (fn) => {
+  navigateFn = fn;
+};
+
+export const setErrorHandler = (fn) => {
+  onError = fn;
+};
+
+export const resetRefreshFailed = () => {
+  refreshFailed = false;
+};
+
+export const clearPendingRequests = () => {
+  pendingRequests = [];
+};
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', clearPendingRequests);
 
 apiClient.interceptors.response.use(
   response => response,
   async error => {
     const origReq = error.config;
-    const status  = error.response?.status;
+    const status = error.response?.status;
 
-    // Only attempt refresh on access‑token 401, skip if already retrying auth routes
-    if (status === 401 &&
-        !origReq._retry &&
-        !origReq.url.includes('/auth/login') &&
-        !origReq.url.includes('/auth/refresh')) {
+    if (refreshFailed) {
+      return Promise.reject(error);
+    }
 
+    if (
+      status === 401 &&
+      !origReq._retry &&
+      !origReq.url.includes('/auth/login') &&
+      !origReq.url.includes('/auth/refresh')
+    ) {
       origReq._retry = true;
 
-      if (!isRefreshing) {
+      if (!isRefreshing && Date.now() - lastRefresh > REFRESH_COOLDOWN) {
         isRefreshing = true;
+        lastRefresh = Date.now();
+
         try {
           await apiClient.post('/auth/refresh');
           isRefreshing = false;
           pendingRequests.forEach(cb => cb());
           pendingRequests = [];
+          return apiClient(origReq);
         } catch (refreshErr) {
           isRefreshing = false;
-          // redirect to login, preserving current path
-          window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+          refreshFailed = true;
+
+          // Notify user
+          onError?.('Session expired, please log in again');
+
+          // Reject all pending requests
+          pendingRequests.forEach(cb => cb(Promise.reject(refreshErr)));
+          pendingRequests = [];
+
+          // Smooth redirect
+          const redirectPath = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+          if (navigateFn) {
+            navigateFn(redirectPath);
+          } else {
+            window.location.href = redirectPath;
+          }
           return Promise.reject(refreshErr);
         }
       }
 
-      return new Promise(resolve => {
-        pendingRequests.push(() => resolve(apiClient(origReq)));
+      // Queue up the request
+      return new Promise((resolve, reject) => {
+        pendingRequests.push((retry) => {
+          if (retry instanceof Promise) {
+            retry.then(resolve).catch(reject);
+          } else {
+            resolve(apiClient(origReq));
+          }
+        });
       });
     }
 

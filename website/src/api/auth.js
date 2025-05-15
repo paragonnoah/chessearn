@@ -1,16 +1,15 @@
-import apiClient from './index';
+import apiClient, { resetRefreshFailed } from './index';
 
 /**
  * Wraps a call in try/catch to normalize errors.
- * Throws either response.data or the raw error.
+ * Returns { success, data } or throws { success, error }.
  */
 async function safePost(url, payload) {
   try {
     const res = await apiClient.post(url, payload);
-    return res.data;
+    return { success: true, data: res.data };
   } catch (err) {
-    // if server sent JSON error body, propagate that
-    throw err.response?.data || err;
+    throw { success: false, error: err.response?.data || err.message };
   }
 }
 
@@ -19,7 +18,11 @@ export const register = async userData => {
 };
 
 export const login = async credentials => {
-  return await safePost('/auth/login', credentials);
+  const result = await safePost('/auth/login', credentials);
+  if (result.success) {
+    resetRefreshFailed();
+  }
+  return result;
 };
 
 export const refreshToken = async () => {
