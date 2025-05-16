@@ -11,36 +11,31 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Set up navigation and error handling
+  // Set navigation and error handling
   useEffect(() => {
     setNavigate(navigate);
-    setErrorHandler(message => toast.error(message));
+    setErrorHandler((message) => toast.error(message));
   }, [navigate]);
 
-  const loadUser = async (retries = 3, delay = 1000) => {
-    setLoading(true);
-    for (let i = 0; i < retries; i++) {
-      try {
-        const profile = await authService.getProfile();
-        setUser(profile.data);
-        setLoading(false);
-        return;
-      } catch (err) {
-        if (i === retries - 1) {
-          setUser(null);
-          setLoading(false);
-          navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
-          return;
-        }
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+  // Load user profile
+  const loadUser = async () => {
+    try {
+      const profile = await authService.getProfile();
+      setUser(profile);
+    } catch (err) {
+      setUser(null);
+      // Redirect handled by api/index.js 401 interceptor
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Initial load
   useEffect(() => {
     loadUser();
   }, []);
 
+  // Login
   const login = async (credentials) => {
     setLoading(true);
     try {
@@ -48,14 +43,19 @@ export const AuthProvider = ({ children }) => {
       await loadUser();
     } catch (err) {
       setUser(null);
-      setLoading(false);
       throw { message: err.error || 'Login failed' };
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Logout
   const logout = async () => {
     try {
       await authService.logout();
+    } catch (err) {
+      // Log error but proceed with logout
+      console.warn('Logout error:', err);
     } finally {
       setUser(null);
       setLoading(false);
@@ -65,9 +65,8 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>
-    {children}
-  </AuthContext.Provider>
-  
+      {children}
+    </AuthContext.Provider>
   );
 };
 

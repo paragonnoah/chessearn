@@ -1,7 +1,3 @@
-
-/*
-  File: src/components/Navbar.jsx
-*/
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -10,7 +6,9 @@ function Navbar() {
 
   return (
     <nav className="w-full bg-brand-dark shadow-md py-3 px-4 sm:py-4 sm:px-6 flex justify-between items-center">
-      <h1 className="text-xl sm:text-2xl font-bold text-btn-primary">ChessEarn</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-btn-primary">
+        <Link to="/">ChessEarn</Link>
+      </h1>
       <div className="flex items-center space-x-2 sm:space-x-4">
         <Link to="/" className="nav-link">Home</Link>
         {user && <Link to="/bet" className="nav-link">Bet</Link>}
@@ -27,7 +25,8 @@ function Navbar() {
         {!loading && user && (
           <button
             onClick={logout}
-            className="btn-primary hover:bg-red-600"
+            className="btn-primary hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+            aria-label="Logout"
           >
             Logout
           </button>

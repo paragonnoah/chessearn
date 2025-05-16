@@ -1,8 +1,13 @@
-// src/services/profileService.js
-import * as profileApi from '../api/profile';
+import { getProfile, uploadPhoto } from '../api/profile';
 
 export const profileService = {
-  getProfile: profileApi.getProfile,
-  uploadPhoto: profileApi.uploadPhoto,
-};
+  /**
+   * Fetches the current user's profile.
+   */
+  getProfile: () => getProfile(),
 
+  /**
+   * Uploads a profile photo. Expects a File object.
+   */
+  uploadPhoto: (file) => uploadPhoto(file),
+};

@@ -11,32 +11,24 @@ function getCookie(name) {
 }
 
 /**
- * Returns an object of any CSRF headers needed by this request.
+ * Returns CSRF headers for the request, if needed.
  */
 export function getCsrfHeader(config) {
   const url = config.url || '';
   const method = (config.method || '').toLowerCase();
 
-  let tokenName = null;
-  if (url.includes('/auth/refresh')) {
-    tokenName = CSRF_TOKENS.refresh;
-  } else if (['post', 'put', 'delete', 'get'].includes(method)) {
-    tokenName = CSRF_TOKENS.access;
+  // Only apply CSRF for mutating methods
+  if (!['post', 'put', 'delete'].includes(method)) {
+    return {};
   }
 
-  if (tokenName) {
-    const token = getCookie(tokenName);
-    if (!token) {
-      console.warn(`Missing CSRF token: ${tokenName}`);
-      // Trigger redirect to login if no token
-      if (setNavigate && typeof setNavigate === 'function') {
-        setNavigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
-      } else {
-        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
-      }
-      return {};
-    }
-    return { 'X-CSRF-Token': token };
+  const tokenName = url.includes('/auth/refresh') ? CSRF_TOKENS.refresh : CSRF_TOKENS.access;
+  const token = getCookie(tokenName);
+
+  if (!token) {
+    console.warn(`Missing CSRF token: ${tokenName}`);
+    return {}; // Rely on api/index.js interceptor for redirect
   }
-  return {};
+
+  return { 'X-CSRF-TOKEN': token };
 }

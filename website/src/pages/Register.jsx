@@ -1,5 +1,3 @@
-
-/* src/pages/Register.jsx */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
@@ -15,12 +13,11 @@ function Register() {
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -32,7 +29,8 @@ function Register() {
       Object.entries(formData).map(([k, v]) => [k, v.trim()])
     );
 
-    if (Object.values(data).some(v => !v)) {
+    // Validation
+    if (Object.values(data).some((v) => !v)) {
       setError('Please fill in all fields.');
       setLoading(false);
       return;
@@ -42,8 +40,13 @@ function Register() {
       setLoading(false);
       return;
     }
+    if (!/^[a-zA-Z0-9_]{3,}$/.test(data.username)) {
+      setError('Username must be at least 3 characters (letters, numbers, underscores).');
+      setLoading(false);
+      return;
+    }
     if (!/^\+\d{10,15}$/.test(data.phone_number)) {
-      setError('Please enter a valid phone number with country code.');
+      setError('Please enter a valid phone number with country code (e.g., +1234567890).');
       setLoading(false);
       return;
     }
@@ -57,13 +60,9 @@ function Register() {
       await authService.register(data);
       navigate('/login', { replace: true });
     } catch (err) {
-      console.error('Registration error:', err);
-      let msg = 'An unexpected error occurred.';
-      if (err?.error) {
-        msg = err.error;
-      } else if (err?.message) {
-        msg = err.message;
-      }
+      let msg = err.error || err.message || 'An unexpected error occurred.';
+      if (err.status === 400) msg = 'Invalid data or user already exists.';
+      if (err.status === 429) msg = 'Too many attempts. Please try again later.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -87,11 +86,11 @@ function Register() {
             )}
             {[
               { id: 'first_name', label: 'First Name', type: 'text', placeholder: 'Enter first name' },
-              { id: 'last_name',  label: 'Last Name',  type: 'text', placeholder: 'Enter last name' },
-              { id: 'email',      label: 'Email',      type: 'email', placeholder: 'Enter email' },
-              { id: 'username',   label: 'Username',   type: 'text', placeholder: 'Enter username' },
-              { id: 'phone_number', label: 'Phone Number (with country code)', type: 'tel', placeholder: 'e.g., +254744929244' },
-              { id: 'password',   label: 'Password',   type: 'password', placeholder: 'Enter password' },
+              { id: 'last_name', label: 'Last Name', type: 'text', placeholder: 'Enter last name' },
+              { id: 'email', label: 'Email', type: 'email', placeholder: 'Enter email' },
+              { id: 'username', label: 'Username', type: 'text', placeholder: 'Enter username' },
+              { id: 'phone_number', label: 'Phone Number', type: 'tel', placeholder: 'e.g., +254744929244' },
+              { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter password' },
             ].map(({ id, label, type, placeholder }) => (
               <div key={id}>
                 <label htmlFor={id} className="block text-text-light mb-1">{label}</label>
@@ -102,7 +101,8 @@ function Register() {
                   onChange={handleChange}
                   placeholder={placeholder}
                   required
-                  className="w-full p-2 rounded-lg bg-brand-light text-brand-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2"
+                  disabled={loading}
+                  className="w-full p-2 rounded-lg bg-brand-light text-brand-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 disabled:opacity-50"
                 />
               </div>
             ))}

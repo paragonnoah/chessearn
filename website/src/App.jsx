@@ -29,7 +29,14 @@ function App() {
           </Route>
           <Route path="*" element={<div>404 Not Found</div>} />
         </Routes>
-        <ToastContainer position="top-right" autoClose={3000} />
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar
+          closeOnClick
+          pauseOnHover
+          draggable
+        />
       </AuthProvider>
     </BrowserRouter>
   );

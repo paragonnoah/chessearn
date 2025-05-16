@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getCsrfHeader } from './csrf';
 
-// Base URL from environment (Vite, CRA, etc.)
+// Base URL from environment
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || 'https://v2.chessearn.com',
   withCredentials: true,
@@ -10,23 +10,22 @@ const apiClient = axios.create({
   },
 });
 
-// Attach CSRF headers to mutating requests
-apiClient.interceptors.request.use(config => {
-  config.headers = {
-    ...config.headers,
-    ...getCsrfHeader(config),
-  };
+// Attach CSRF headers for mutating requests
+apiClient.interceptors.request.use((config) => {
+  if (['POST', 'PUT', 'DELETE'].includes(config.method.toUpperCase())) {
+    config.headers = { ...config.headers, ...getCsrfHeader(config) };
+  }
   return config;
 });
 
-// Queue up concurrent 401s so we only call /auth/refresh once
+// Refresh token management
 let isRefreshing = false;
 let pendingRequests = [];
 let refreshFailed = false;
 let lastRefresh = 0;
-const REFRESH_COOLDOWN = 1000; // 1 second
+const REFRESH_COOLDOWN = 1000; // 1s
 
-// Navigation and error handlers
+// Handlers
 let navigateFn = null;
 let onError = null;
 
@@ -46,12 +45,12 @@ export const clearPendingRequests = () => {
   pendingRequests = [];
 };
 
-// Cleanup on page unload
+// Cleanup on unload
 window.addEventListener('beforeunload', clearPendingRequests);
 
 apiClient.interceptors.response.use(
-  response => response,
-  async error => {
+  (response) => response,
+  async (error) => {
     const origReq = error.config;
     const status = error.response?.status;
 
@@ -62,8 +61,7 @@ apiClient.interceptors.response.use(
     if (
       status === 401 &&
       !origReq._retry &&
-      !origReq.url.includes('/auth/login') &&
-      !origReq.url.includes('/auth/refresh')
+      !origReq.url.includes('/auth/') // Exclude all /auth endpoints
     ) {
       origReq._retry = true;
 
@@ -74,32 +72,27 @@ apiClient.interceptors.response.use(
         try {
           await apiClient.post('/auth/refresh');
           isRefreshing = false;
-          pendingRequests.forEach(cb => cb());
+          pendingRequests.forEach((cb) => cb());
           pendingRequests = [];
           return apiClient(origReq);
         } catch (refreshErr) {
           isRefreshing = false;
           refreshFailed = true;
 
-          // Notify user
-          onError?.('Session expired, please log in again');
+          onError?.('Session expired. Please log in again.');
 
-          // Reject all pending requests
-          pendingRequests.forEach(cb => cb(Promise.reject(refreshErr)));
+          pendingRequests.forEach((cb) => cb(Promise.reject(refreshErr)));
           pendingRequests = [];
 
-          // Smooth redirect
-          const redirectPath = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
-          if (navigateFn) {
-            navigateFn(redirectPath);
-          } else {
-            window.location.href = redirectPath;
-          }
+          const redirectPath = `/login?redirect=${encodeURIComponent(
+            window.location.pathname
+          )}`;
+          navigateFn ? navigateFn(redirectPath) : (window.location.href = redirectPath);
           return Promise.reject(refreshErr);
         }
       }
 
-      // Queue up the request
+      // Queue request
       return new Promise((resolve, reject) => {
         pendingRequests.push((retry) => {
           if (retry instanceof Promise) {
