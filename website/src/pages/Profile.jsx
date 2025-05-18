@@ -1,121 +1,115 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { profileService } from '../services/profileService';
+import React, { useEffect, useState, useRef } from "react";
+import { getProfile, uploadProfilePhoto, getProfilePhoto } from "../api/profile";
 
-function Profile() {
-  const { user, loading: authLoading } = useAuth();
-  const [photoFile, setPhotoFile] = useState(null);
+export default function Profile() {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
+  const [message, setMessage] = useState("");
+  const fileInput = useRef();
 
-  // Refresh profile after upload
-  const refreshProfile = async () => {
-    try {
-      const updated = await profileService.getProfile();
-      return updated;
-    } catch (err) {
-      setError(err.error || 'Failed to refresh profile');
-      return null;
+  useEffect(() => {
+    async function fetchProfile() {
+      setLoading(true);
+      try {
+        const data = await getProfile();
+        setProfile(data);
+        if (data.photo_url && data.id) {
+          fetchPhoto(data.id);
+        }
+      } catch (err) {
+        setMessage("Failed to load profile.");
+      } finally {
+        setLoading(false);
+      }
     }
-  };
 
-  const handleFileChange = (e) => {
-    if (e.target.files.length) setPhotoFile(e.target.files[0]);
-  };
-
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (!photoFile) {
-      setError('Please select a photo');
-      return;
+    async function fetchPhoto(userId) {
+      try {
+        const blob = await getProfilePhoto(userId);
+        setPhotoUrl(URL.createObjectURL(blob));
+      } catch {
+        setPhotoUrl(null);
+      }
     }
+
+    fetchProfile();
+    // Cleanup: revoke object URL to avoid memory leaks
+    return () => {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+    };
+    // eslint-disable-next-line
+  }, []);
+
+  const handlePhotoChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
     setUploading(true);
-    setError(null);
+    setMessage("");
     try {
-      await profileService.uploadPhoto(photoFile);
-      const updated = await refreshProfile();
-      if (updated) {
-        // AuthContext user state updates automatically via loadUser
-        setPhotoFile(null);
+      await uploadProfilePhoto(file);
+      setMessage("Photo uploaded successfully!");
+      // Refresh photo
+      if (profile?.id) {
+        const blob = await getProfilePhoto(profile.id);
+        setPhotoUrl(URL.createObjectURL(blob));
       }
     } catch (err) {
-      setError(err.error || 'Photo upload failed');
+      setMessage(err?.message || "Failed to upload photo.");
     } finally {
       setUploading(false);
+      // Clear input value so user can upload same file again if needed
+      if (fileInput.current) fileInput.current.value = "";
     }
   };
 
-  if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading) {
+    return <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow text-center">Loading profile...</div>;
   }
 
-  if (!user) {
-    return null; // ProtectedRoute handles redirect
+  if (!profile) {
+    return <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow text-center">No profile data found.</div>;
   }
 
   return (
-    <div className="min-h-screen bg-brand-light text-brand-dark flex flex-col">
-      <main className="flex-grow max-w-3xl mx-auto p-6">
-        <h2 className="text-2xl font-bold mb-4">Your Profile</h2>
-        {error && <p className="text-red-500 mb-4" role="alert">{error}</p>}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-4">
-            {user.photo_url ? (
-              <img
-                src={user.photo_url}
-                alt="Profile"
-                className="w-24 h-24 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-24 h-24 bg-surface-dark rounded-full flex items-center justify-center text-text-muted">
-                No Photo
-              </div>
-            )}
-            <div className="space-y-1">
-              <p><strong>ID:</strong> {user.id}</p>
-              <p><strong>Name:</strong> {user.first_name} {user.last_name}</p>
-              <p><strong>Email:</strong> {user.email}</p>
-              <p><strong>Username:</strong> {user.username}</p>
-              <p><strong>Phone:</strong> {user.phone_number}</p>
-              <p><strong>Role:</strong> {user.role}</p>
-              <p><strong>Ranking:</strong> {user.ranking}</p>
-              <p>
-                <strong>Wallet Balance:</strong>{' '}
-                {user.wallet_balance != null ? `$${user.wallet_balance.toFixed(2)}` : '$0.00'}
-              </p>
-              <p><strong>Active:</strong> {user.is_active ? 'Yes' : 'No'}</p>
-              <p><strong>Verified:</strong> {user.is_verified ? 'Yes' : 'No'}</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleUpload} className="space-y-2">
-            <label htmlFor="photo-upload" className="block">
-              Update Photo:
-            </label>
-            <input
-              id="photo-upload"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              disabled={uploading}
-              className="block text-sm text-brand-dark file:mr-4 file:py-2 file:px-4 file:rounded-md file:bg-btn-primary file:text-text-dark file:font-semibold file:hover:bg-btn-primary-hover disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={uploading || !photoFile}
-              className="mt-2 bg-btn-primary hover:bg-btn-primary-hover text-text-dark font-semibold py-1 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-busy={uploading}
-            >
-              {uploading ? 'Uploading...' : 'Upload'}
-            </button>
-          </form>
+    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+      <h2 className="text-2xl font-bold mb-4">My Profile</h2>
+      <div className="flex flex-col items-center mb-4">
+        <div className="w-24 h-24 rounded-full overflow-hidden border mb-2 bg-gray-100 flex items-center justify-center">
+          {photoUrl ? (
+            <img src={photoUrl} alt="Profile" className="object-cover w-full h-full" />
+          ) : (
+            <span className="text-gray-400">No photo</span>
+          )}
         </div>
-      </main>
-      <footer className="w-full bg-brand-dark py-4 text-center text-text-muted">
-        <p>© 2025 ChessEarn. All rights reserved.</p>
-      </footer>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handlePhotoChange}
+          disabled={uploading}
+          ref={fileInput}
+          className="mb-2"
+        />
+        <button
+          onClick={() => fileInput.current && fileInput.current.click()}
+          className="bg-yellow-400 px-3 py-1 rounded text-black font-medium hover:bg-yellow-500 transition"
+          disabled={uploading}
+          type="button"
+        >
+          {uploading ? "Uploading..." : "Upload New Photo"}
+        </button>
+      </div>
+      <div className="mb-2"><strong>Name:</strong> {profile.first_name} {profile.last_name}</div>
+      <div className="mb-2"><strong>Username:</strong> {profile.username}</div>
+      <div className="mb-2"><strong>Email:</strong> {profile.email}</div>
+      <div className="mb-2"><strong>Phone:</strong> {profile.phone_number}</div>
+      <div className="mb-2"><strong>Role:</strong> {profile.role}</div>
+      <div className="mb-2"><strong>Ranking:</strong> {profile.ranking}</div>
+      <div className="mb-2"><strong>Wallet:</strong> ${profile.wallet_balance}</div>
+      <div className="mb-2"><strong>Status:</strong> {profile.is_active ? "Active" : "Inactive"}</div>
+      <div className="mb-2"><strong>Verified:</strong> {profile.is_verified ? "Yes" : "No"}</div>
+      {message && <div className="mt-4 text-center text-yellow-700">{message}</div>}
     </div>
   );
 }
-
-export default Profile;

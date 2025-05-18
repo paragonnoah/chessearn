@@ -1,28 +1,27 @@
-import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const ProtectedRoute = ({ roles }) => {
+/**
+ * Wrap your protected routes in this component.
+ * If not authenticated, user will be redirected to /login.
+ * Usage: <ProtectedRoute><Profile /></ProtectedRoute>
+ */
+export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  const location = useLocation();
 
+  // Optionally, show a loading spinner while auth is being determined
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center h-64 text-lg">
+        Loading...
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+    return <Navigate to="/login" replace />;
   }
 
-  if (roles && !roles.includes(user.role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <Outlet />;
-};
-
-export default ProtectedRoute;
+  return children;
+}

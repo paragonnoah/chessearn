@@ -1,127 +1,123 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/authService';
+import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate, Link } from "react-router-dom";
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
-function Register() {
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    username: '',
-    phone_number: '',
-    password: '',
+export default function Register() {
+  const { register, error } = useAuth();
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    username: "",
+    phone_number: "",
+    password: "",
   });
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [retypePassword, setRetypePassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
-  };
+  const onChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const data = Object.fromEntries(
-      Object.entries(formData).map(([k, v]) => [k, v.trim()])
-    );
-
-    // Validation
-    if (Object.values(data).some((v) => !v)) {
-      setError('Please fill in all fields.');
-      setLoading(false);
+    if (form.password !== retypePassword) {
+      setValidationError("Passwords do not match");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      setError('Please enter a valid email address.');
-      setLoading(false);
-      return;
-    }
-    if (!/^[a-zA-Z0-9_]{3,}$/.test(data.username)) {
-      setError('Username must be at least 3 characters (letters, numbers, underscores).');
-      setLoading(false);
-      return;
-    }
-    if (!/^\+\d{10,15}$/.test(data.phone_number)) {
-      setError('Please enter a valid phone number with country code (e.g., +1234567890).');
-      setLoading(false);
-      return;
-    }
-    if (data.password.length < 8) {
-      setError('Password must be at least 8 characters long.');
-      setLoading(false);
-      return;
-    }
-
+    setValidationError("");
+    setSubmitting(true);
     try {
-      await authService.register(data);
-      navigate('/login', { replace: true });
+      await register(form);
+      navigate("/login");
     } catch (err) {
-      let msg = err.error || err.message || 'An unexpected error occurred.';
-      if (err.status === 400) msg = 'Invalid data or user already exists.';
-      if (err.status === 429) msg = 'Too many attempts. Please try again later.';
-      setError(msg);
+      // error handled in context
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark text-text-light flex flex-col">
-      <section className="flex-grow flex items-center justify-center px-4">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-brand-dark p-6 sm:p-8 rounded-lg shadow-md w-full max-w-md border border-brand-accent/50"
-          aria-labelledby="register-title"
-        >
-          <h2 id="register-title" className="text-2xl sm:text-3xl font-bold text-brand-accent mb-6 text-center">
-            Register
-          </h2>
-          <div className="space-y-4">
-            {error && (
-              <p className="text-red-500 text-sm text-center" role="alert">{error}</p>
-            )}
-            {[
-              { id: 'first_name', label: 'First Name', type: 'text', placeholder: 'Enter first name' },
-              { id: 'last_name', label: 'Last Name', type: 'text', placeholder: 'Enter last name' },
-              { id: 'email', label: 'Email', type: 'email', placeholder: 'Enter email' },
-              { id: 'username', label: 'Username', type: 'text', placeholder: 'Enter username' },
-              { id: 'phone_number', label: 'Phone Number', type: 'tel', placeholder: 'e.g., +254744929244' },
-              { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter password' },
-            ].map(({ id, label, type, placeholder }) => (
-              <div key={id}>
-                <label htmlFor={id} className="block text-text-light mb-1">{label}</label>
-                <input
-                  id={id}
-                  type={type}
-                  value={formData[id]}
-                  onChange={handleChange}
-                  placeholder={placeholder}
-                  required
-                  disabled={loading}
-                  className="w-full p-2 rounded-lg bg-brand-light text-brand-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 disabled:opacity-50"
-                />
-              </div>
-            ))}
-            <button
-              type="submit"
-              disabled={loading}
-              aria-busy={loading}
-              className="w-full bg-brand-accent text-brand-dark font-semibold py-2 rounded-lg hover:bg-brand-danger hover:text-text-light transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Registering...' : 'Register'}
-            </button>
-          </div>
-        </form>
-      </section>
-      <footer className="w-full bg-brand-dark py-4 text-center text-text-muted">
-        <p>© 2025 ChessEarn. All rights reserved.</p>
-      </footer>
-    </div>
+    <form className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow" onSubmit={onSubmit}>
+      <h2 className="text-2xl font-bold mb-4">Register</h2>
+      <input
+        name="first_name"
+        placeholder="First Name"
+        value={form.first_name}
+        onChange={onChange}
+        className="w-full mb-3 p-2 border rounded"
+        autoComplete="given-name"
+      />
+      <input
+        name="last_name"
+        placeholder="Last Name"
+        value={form.last_name}
+        onChange={onChange}
+        className="w-full mb-3 p-2 border rounded"
+        autoComplete="family-name"
+      />
+      <input
+        name="email"
+        type="email"
+        placeholder="Email"
+        value={form.email}
+        onChange={onChange}
+        className="w-full mb-3 p-2 border rounded"
+        autoComplete="email"
+      />
+      <input
+        name="username"
+        placeholder="Username"
+        value={form.username}
+        onChange={onChange}
+        className="w-full mb-3 p-2 border rounded"
+        autoComplete="username"
+      />
+      <PhoneInput
+        country={'ke'}  // Default to Kenya, can be changed
+        value={form.phone_number}
+        onChange={(phone) => setForm({ ...form, phone_number: phone })}
+        enableSearch={true}
+        inputClass="w-full p-2 border rounded"
+        containerClass="mb-3"
+        autoComplete="tel"
+      />
+      <input
+        name="password"
+        type="password"
+        placeholder="Password"
+        value={form.password}
+        onChange={onChange}
+        className="w-full mb-3 p-2 border rounded"
+        autoComplete="new-password"
+      />
+      <input
+        type="password"
+        placeholder="Retype Password"
+        value={retypePassword}
+        onChange={(e) => setRetypePassword(e.target.value)}
+        className="w-full mb-4 p-2 border rounded"
+        autoComplete="new-password"
+      />
+      <button
+        className="bg-yellow-400 text-black px-4 py-2 rounded w-full"
+        disabled={submitting}
+        type="submit"
+      >
+        {submitting ? "Registering..." : "Register"}
+      </button>
+      {(validationError || error) && (
+        <div className="text-red-500 mt-2">{validationError || error}</div>
+      )}
+      <div className="mt-4 text-sm text-center">
+        Already have an account?{" "}
+        <Link to="/login" className="text-yellow-600 hover:underline">
+          Login
+        </Link>
+      </div>
+    </form>
   );
 }
-
-export default Register;

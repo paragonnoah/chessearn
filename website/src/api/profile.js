@@ -1,49 +1,37 @@
-import apiClient from './index';
+import { apiRequest } from "../utils/api";
 
 /**
- * Wraps a GET call, returns data or throws error.
+ * Fetch the current user's profile.
+ * @returns {Promise<Object>} Profile data
  */
-async function safeGet(url) {
-  try {
-    const res = await apiClient.get(url);
-    return res.data;
-  } catch (err) {
-    throw {
-      error: err.response?.data?.message || err.message,
-      status: err.response?.status,
-    };
-  }
+export function getProfile() {
+  return apiRequest("/profile", { method: "GET" });
 }
 
 /**
- * Wraps a POST call, returns data or throws error.
+ * Upload a new profile photo.
+ * @param {File} file - The file to upload.
+ * @returns {Promise<Object>} Upload result
  */
-async function safePost(url, payload, config = {}) {
-  try {
-    const res = await apiClient.post(url, payload, config);
-    return res.data;
-  } catch (err) {
-    throw {
-      error: err.response?.data?.message || err.message,
-      status: err.response?.status,
-    };
-  }
-}
-
-/**
- * Fetches the current user's profile.
- */
-export const getProfile = async () => {
-  return await safeGet('/profile');
-};
-
-/**
- * Uploads a profile photo. Expects a File object.
- */
-export const uploadPhoto = async (file) => {
+export function uploadProfilePhoto(file) {
   const formData = new FormData();
-  formData.append('photo', file);
-  return await safePost('/profile/photo', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+  formData.append("photo", file);
+
+  // apiRequest will handle CSRF and credentials
+  return apiRequest("/profile/photo", {
+    method: "POST",
+    formData,
   });
-};
+}
+
+/**
+ * Get a user's profile photo as a Blob.
+ * @param {string} userId - The user's UUID.
+ * @returns {Promise<Blob>} The photo blob.
+ */
+export function getProfilePhoto(userId) {
+  return apiRequest(`/profile/photo/${userId}`, {
+    method: "GET",
+    withCredentials: false, // since it's public
+  });
+}
