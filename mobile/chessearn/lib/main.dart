@@ -4,16 +4,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
 import 'screens/game_screen.dart';
 import 'services/api_service.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ApiService.initializeCookieJar(); // Replace ApiService.init() with this
+  
+  // Initialize Stripe
+  Stripe.publishableKey = 'pk_test_your_publishable_key_here'; // Replace with your Stripe test publishable key
+  await Stripe.instance.applySettings();
+
+  // Initialize ApiService and SharedPreferences
+  await ApiService.initializeCookieJar();
   final prefs = await SharedPreferences.getInstance();
-  final String? accessToken = prefs.getString('access_token'); // Temporary fallback
-  // If accessToken exists, pass a userId; otherwise, route to HomeScreen
-  // Note: userId: '' might need to be replaced with a proper userId from the token or prefs
+  final String? accessToken = prefs.getString('access_token');
+  
+  // If accessToken exists, route to GameScreen; otherwise, route to HomeScreen
   runApp(ChessEarnApp(
-    initialRoute: accessToken != null ? GameScreen(userId: prefs.getString('userId') ?? '') : const HomeScreen(),
+    initialRoute: accessToken != null
+        ? GameScreen(
+            userId: prefs.getString('userId') ?? '',
+            initialPlayMode: '',
+          )
+        : const HomeScreen(),
   ));
 }
 

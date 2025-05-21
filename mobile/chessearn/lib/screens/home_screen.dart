@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:chessearn/screens/login_screen.dart';
 import 'package:chessearn/screens/signup_screen.dart';
-import 'package:chessearn/screens/game_screen.dart';
+import 'package:chessearn/screens/main_screen.dart';
 import 'package:chessearn/theme.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -33,6 +33,14 @@ class HomeScreen extends StatelessWidget {
                   color: ChessEarnTheme.themeColors['text-light'],
                 ),
               ),
+              const SizedBox(height: 20),
+              Text(
+                'Play to Earn Rewards!',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: ChessEarnTheme.themeColors['brand-accent'],
+                ),
+              ),
               const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
@@ -41,6 +49,9 @@ class HomeScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => const LoginScreen()),
                   );
                 },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
                 child: const Text('Log In', style: TextStyle(fontSize: 18)),
               ),
               const SizedBox(height: 20),
@@ -51,6 +62,9 @@ class HomeScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => const SignupScreen()),
                   );
                 },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
                 child: const Text('Sign Up', style: TextStyle(fontSize: 18)),
               ),
               const SizedBox(height: 20),
@@ -58,10 +72,23 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const GameScreen(userId: null)),
+                    MaterialPageRoute(builder: (context) => const MainScreen(userId: null)),
                   );
                 },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
                 child: const Text('Play as Guest', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  // Optionally navigate to terms or about page
+                },
+                child: Text(
+                  'Learn More About Earning',
+                  style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'], fontSize: 14),
+                ),
               ),
             ],
           ),

@@ -1,5 +1,5 @@
 name: chessearn
-description: A global chess platform with 1v1 gameplay.
+description: A global chess platform with 1v1 gameplay where players can earn rewards.
 version: 1.0.0+1
 
 environment:
@@ -8,23 +8,28 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_chess_board: ^1.0.1  # Use stable version
-  chess: ^0.7.0              # Explicitly add compatible chess version
-  http: ^1.2.2
-  shared_preferences: ^2.3.2
-  country_code_picker: ^3.0.0
-  google_sign_in: ^6.2.1
-  intl: ^0.18.1
-  cookie_jar: ^4.0.8
-  path_provider: ^2.1.5
-  image_picker: ^1.0.0 
-  cupertino_icons: ^1.0.2
+  flutter_chess_board: ^1.0.1  # For the chess board UI
+  chess: ^0.7.0              # Downgraded to match flutter_chess_board ^1.0.1
+  http: ^1.4.0              # For API calls (e.g., move syncing, M-Pesa)
+  shared_preferences: ^2.3.3 # For saving game state or user preferences
+  country_code_picker: ^3.0.0 # For friend location or user profile
+  google_sign_in: ^6.2.2    # For Google authentication
+  intl: ^0.20.2             # For internationalization (e.g., time formats)
+  cookie_jar: ^4.0.8        # For HTTP cookie management
+  path_provider: ^2.0.15    # For file storage (e.g., saving game data)
+  image_picker: ^1.0.0      # For profile picture uploads
+  cupertino_icons: ^1.0.2   # iOS-style icons
+  dartchess: ^0.11.1         # Alternative chess library
+  permission_handler: ^12.0.0+1 # For runtime permissions
+  flutter_stripe: ^11.0.0   # Modern Stripe package (replaces stripe_payment and stripe)
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^5.0.0     # For code linting and best practices
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/
+    - assets/images/chess_board.png  # Explicitly list the chess board image
+    - assets/                       # Wildcard for additional assets

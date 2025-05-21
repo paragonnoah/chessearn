@@ -1,0 +1,35 @@
+name: chessearn_new
+description: A global chess platform with 1v1 gameplay where players can earn rewards.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.17.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_chess_board: ^1.0.1  # For the chess board UI in game_screen.dart
+  chess: ^0.7.0              # Chess logic for game_screen.dart
+  http: ^1.4.0              # For API calls in api_service.dart
+  shared_preferences: ^2.3.3 # For saving tokens in main.dart and api_service.dart
+  flutter_stripe: ^11.0.0    # For Stripe payments in main.dart
+  cookie_jar: ^4.0.8        # For HTTP cookie management (used in api_service.dart)
+  image_picker: ^1.0.0      # For profile picture uploads in api_service.dart
+  google_sign_in: ^6.2.2    # For Google authentication (future use in login_screen.dart)
+  country_code_picker: ^3.0.0 # For user profile or friend location (future use)
+  intl: ^0.20.2             # For internationalization (future use)
+  path_provider: ^2.0.15    # For file storage (future use)
+  permission_handler: ^12.0.0+1 # For runtime permissions (future use with image_picker)
+  dartchess: ^0.11.1         # Alternative chess library (future use)
+  cupertino_icons: ^1.0.2   # iOS-style icons (future use)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0     # For code linting and best practices
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/chess_board.png  # Explicitly list the chess board image
+    - assets/                       # Wildcard for additional assets

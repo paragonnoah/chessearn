@@ -288,7 +288,7 @@ if (moveList.every((move) => move is String)) {
                                 final isWhiteMove = index % 2 == 0;
                                 final moveText = isWhiteMove
                                     ? '$moveNumber. ${moveHistory[index]}'
-                                    : '${moveHistory[index]}';
+                                    : moveHistory[index];
                                 return Text(
                                   moveText,
                                   style: TextStyle(
