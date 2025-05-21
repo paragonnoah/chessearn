@@ -2,6 +2,15 @@ from flask import current_app
 from app import db
 from app.models.user import User, UserRole
 from email_validator import validate_email, EmailNotValidError
+import phonenumbers
+
+
+def is_valid_phone_number(phone):
+    try:
+        parsed = phonenumbers.parse(phone, None)
+        return phonenumbers.is_valid_number(parsed)
+    except phonenumbers.NumberParseException:
+        return False
 
 
 def authenticate(identifier, password):
@@ -24,7 +33,7 @@ def register_user(first_name, last_name, email, username, phone_number, password
     except EmailNotValidError:
         current_app.logger.error(f"Invalid email format: {email}")
         return None, "Invalid registration data"
-    if len(phone_number) < 10 or not phone_number.isdigit():
+    if not is_valid_phone_number(phone_number):
         current_app.logger.error(f"Invalid phone number: {phone_number}")
         return None, "Invalid registration data"
     if len(password) < 8:

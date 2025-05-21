@@ -28,7 +28,7 @@ class AdminUserService:
             email=data["email"],
             phone_number=data["phone_number"],
             role=role_upper,
-            password=data['password'],
+            password=data["password"],
         )
         new_user.set_password(data["password"])
         db.session.add(new_user)
@@ -55,7 +55,6 @@ class AdminUserService:
 
         db.session.commit()
         return user
-
 
     @staticmethod
     def delete_user(user_id):
