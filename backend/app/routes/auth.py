@@ -1,10 +1,14 @@
 # backend/app/routes/auth.py
 from flask import Blueprint, request, jsonify, make_response
 from flask_jwt_extended import (
-    create_access_token, create_refresh_token,
-    jwt_required, get_jwt_identity,
-    set_access_cookies, set_refresh_cookies,
-    unset_jwt_cookies, get_jwt
+    create_access_token,
+    create_refresh_token,
+    jwt_required,
+    get_jwt_identity,
+    set_access_cookies,
+    set_refresh_cookies,
+    unset_jwt_cookies,
+    get_jwt,
 )
 
 from app.services.auth import authenticate, register_user
@@ -28,13 +32,19 @@ def register():
 @limiter.limit("10/minute")
 def login():
     data = request.get_json() or {}
-    user = authenticate(data.get('identifier'), data.get('password'))
+    user = authenticate(data.get("identifier"), data.get("password"))
     if not user:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    access_token = create_access_token(identity=user.id, additional_claims={"role": user.role.value})
-    refresh_token = create_refresh_token(identity=user.id, additional_claims={"role": user.role.value})
-    resp = make_response(jsonify({"user": {"id": user.id, "username": user.username}}), 200)
+    access_token = create_access_token(
+        identity=user.id, additional_claims={"role": user.role.value}
+    )
+    refresh_token = create_refresh_token(
+        identity=user.id, additional_claims={"role": user.role.value}
+    )
+    resp = make_response(
+        jsonify({"user": {"id": user.id, "username": user.username}}), 200
+    )
     set_access_cookies(resp, access_token)
     set_refresh_cookies(resp, refresh_token)
     return resp
@@ -44,11 +54,15 @@ def login():
 @jwt_required(refresh=True)
 def refresh():
     current_user = User.query.get(get_jwt_identity())
-    access_token = create_access_token(identity=current_user.id, additional_claims={"role": current_user.role.value})
-    resp = make_response(jsonify({"user": {"id": current_user.id, "username": current_user.username}}), 200)
+    access_token = create_access_token(
+        identity=current_user.id, additional_claims={"role": current_user.role.value}
+    )
+    resp = make_response(
+        jsonify({"user": {"id": current_user.id, "username": current_user.username}}),
+        200,
+    )
     set_access_cookies(resp, access_token)
     return resp
-
 
 
 @auth_bp.route("/logout", methods=["POST"])

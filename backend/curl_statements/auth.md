@@ -1,5 +1,5 @@
 # 1. Register
-curl -X POST http://192.168.100.8:5000/auth/register \
+curl -X POST  https://v2.chessearn.com/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "John",
@@ -18,7 +18,7 @@ curl -X POST http://192.168.100.8:5000/auth/register \
 # }
 
 # 2. Login (saves cookies to cookies.txt)
-curl -X POST http://192.168.100.8:5000/auth/login \
+curl -X POST https://v2.chessearn.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "identifier": "johndoe",
@@ -36,7 +36,7 @@ curl -X POST http://192.168.100.8:5000/auth/login \
 # }
 
 # 3. Refresh (reads refresh cookie, issues new access cookie)
-curl -X POST http://192.168.100.8:5000/auth/refresh \
+curl -X POST  https://v2.chessearn.com/auth/refresh \
   -b cookies.txt \
   -c cookies.txt
 
@@ -50,7 +50,7 @@ curl -X POST http://192.168.100.8:5000/auth/refresh \
 # }
 
 # 4. Logout (blacklists current JWT, clears cookies)
-curl -X POST http://192.168.100.8:5000/auth/logout \
+curl -X POST  https://v2.chessearn.com/auth/logout \
   -b cookies.txt
 
 # Expected JSON:

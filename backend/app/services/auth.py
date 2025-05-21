@@ -1,4 +1,3 @@
-
 # backend/app/services/auth.py
 from flask import current_app
 from app import db
@@ -40,9 +39,9 @@ def is_valid_phone_number(phone: str) -> bool:
 
 def authenticate(identifier, password):
     user = User.query.filter(
-        (User.email == identifier) |
-        (User.username == identifier) |
-        (User.phone_number == identifier)
+        (User.email == identifier)
+        | (User.username == identifier)
+        | (User.phone_number == identifier)
     ).first()
     if user and user.check_password(password):
         return user
@@ -52,19 +51,19 @@ def authenticate(identifier, password):
 
 def register_user(**kwargs):
     try:
-        validate_email(kwargs['email'])
-        if not is_valid_phone_number(kwargs['phone_number']):
+        validate_email(kwargs["email"])
+        if not is_valid_phone_number(kwargs["phone_number"]):
             raise ValueError("Invalid phone number")
-        if len(kwargs['password']) < 8:
+        if len(kwargs["password"]) < 8:
             raise ValueError("Password too short")
     except (EmailNotValidError, ValueError) as e:
         current_app.logger.error(f"Registration error: {e}")
         return None, str(e)
 
     duplicate = User.query.filter(
-        (User.email == kwargs['email']) |
-        (User.username == kwargs['username']) |
-        (User.phone_number == kwargs['phone_number'])
+        (User.email == kwargs["email"])
+        | (User.username == kwargs["username"])
+        | (User.phone_number == kwargs["phone_number"])
     ).first()
     if duplicate:
         return None, "User already exists"

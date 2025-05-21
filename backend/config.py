@@ -4,6 +4,7 @@ import os
 
 load_dotenv()
 
+
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
@@ -38,5 +39,7 @@ class Config:
             "http://192.168.100.8:5173",
             "http://41.90.176.141",
             "https://41.90.176.141",
-        ] if DEBUG else []
+        ]
+        if DEBUG
+        else []
     )

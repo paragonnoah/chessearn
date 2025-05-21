@@ -2,7 +2,7 @@
 using `--cookie cookies.txt` for authentication, so it remains unchanged.
 
 ```bash
-curl -X GET http://192.168.100.8:5000/profile \
+curl -X GET https://v2.chessearn.com/profile \
   --cookie cookies.txt
 ```
 
@@ -20,7 +20,7 @@ curl -X GET http://192.168.100.8:5000/profile \
   "wallet_balance": 0.0,
   "is_active": true,
   "is_verified": false,
-  "photo_url": "http://192.168.100.8:5000/profile/photo/123e4567-e89b-12d3-a456-426614174000"
+  "photo_url": "https://v2.chessearn.com/profile/photo/123e4567-e89b-12d3-a456-426614174000"
 }
 ```
  
@@ -31,7 +31,7 @@ curl -X GET http://192.168.100.8:5000/profile \
 
 ```bash
 curl -X POST \
-  http://192.168.100.8:5000/profile/photo \
+  https://v2.chessearn.com/profile/photo \
   --cookie cookies.txt \
   -H "X-CSRF-TOKEN: <csrf_access_token_value>" \
   -F "photo=@profile.jpg"
@@ -53,7 +53,7 @@ The original statement doesn’t use authentication, which aligns with the endpo
 
 ```bash
 curl -X GET \
-  http://192.168.100.8:5000/profile/photo/123e4567-e89b-12d3-a456-426614174000 \
+  https://v2.chessearn.com/profile/photo/123e4567-e89b-12d3-a456-426614174000 \
   -o photo.jpg
 ```
 
@@ -73,18 +73,18 @@ These updated statements ensure consistency in using cookies for authentication 
 ```bash
 # Upload a Photo
 curl -X POST \
-  http://192.168.100.8:5000/profile/photo \
+  https://v2.chessearn.com/profile/photo \
   --cookie cookies.txt \
   -H "X-CSRF-TOKEN: <csrf_access_token_value>" \
   -F "photo=@profile.jpg"
 
 # Get Profile
-curl -X GET http://192.168.100.8:5000/profile \
+curl -X GET https://v2.chessearn.com/profile \
   --cookie cookies.txt
 
 # Get the Photo
 curl -X GET \
-  http://192.168.100.8:5000/profile/photo/123e4567-e89b-12d3-a456-426614174000 \
+  https://v2.chessearn.com/profile/photo/123e4567-e89b-12d3-a456-426614174000 \
   -o photo.jpg
 ```
 

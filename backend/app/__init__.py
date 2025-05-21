@@ -22,9 +22,11 @@ jwt = JWTManager()
 cache = Cache(config={"CACHE_TYPE": "simple"})
 limiter = Limiter(key_func=get_remote_address)
 
+
 @jwt.token_in_blocklist_loader
 def check_if_token_revoked(jwt_header, jwt_payload):
     from app.models.token_blacklist import TokenBlacklist
+
     return bool(TokenBlacklist.query.filter_by(jti=jwt_payload["jti"]).first())
 
 
@@ -53,8 +55,8 @@ def create_app():
         app,
         origins=app.config["CORS_ORIGINS"],
         supports_credentials=True,
-        methods=["GET","POST","PUT","DELETE","OPTIONS"],
-        allow_headers=["Content-Type","Authorization","X-CSRF-TOKEN"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-CSRF-TOKEN"],
     )
 
     # Blueprints
@@ -69,10 +71,15 @@ def create_app():
     # Root and error handler
     @app.route("/", methods=["GET"])
     def index():
-        return jsonify({
-            "message": "Welcome to the Chess Earn API.",
-            "contact": "developers@chessearn.com",
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Welcome to the Chess Earn API.",
+                    "contact": "developers@chessearn.com",
+                }
+            ),
+            200,
+        )
 
     @app.errorhandler(Exception)
     def handle_exception(e):
@@ -84,7 +91,8 @@ def create_app():
 
     return app
 
+
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=app.config['DEBUG'])
+    app.run(host="0.0.0.0", debug=app.config["DEBUG"])
