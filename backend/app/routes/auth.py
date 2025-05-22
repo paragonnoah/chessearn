@@ -68,10 +68,8 @@ def refresh():
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
-    # 1) Grab the token's JTI, not the user ID
     jti = get_jwt()["jti"]
 
-    # 2) Blacklist it (ignore if already there)
     try:
         db.session.add(TokenBlacklist(jti=jti))
         db.session.commit()
@@ -79,7 +77,6 @@ def logout():
         db.session.rollback()
         current_app.logger.info(f"Token JTI {jti} was already blacklisted.")
 
-    # 3) Clear cookies client‐side
     resp = make_response(jsonify({"message": "Logged out"}), 200)
     unset_jwt_cookies(resp)
     return resp
