@@ -22,6 +22,7 @@ dependencies:
   permission_handler: ^12.0.0+1 # For runtime permissions (future use with image_picker)
   dartchess: ^0.11.1         # Alternative chess library (future use)
   cupertino_icons: ^1.0.2   # iOS-style icons (future use)
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:country_code_picker/country_code_picker.dart';
@@ -7,6 +6,7 @@ import 'game_screen.dart';
 import 'signup_screen.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import 'dart:convert' as json; // Manually re-typed to ensure correctness
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -112,11 +112,11 @@ class _LoginScreenState extends State<LoginScreen> {
           final response = await http.post(
             Uri.parse('${ApiService.baseUrl}/google/mobile'), // Placeholder endpoint
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'id_token': idToken}),
+            body: json.jsonEncode({'id_token': idToken}),
           );
           if (response.statusCode == 200) {
-            final responseBody = jsonDecode(response.body);
-            final userId = responseBody['id']?.toString() ?? ''; // Adjusted to 'id' (hypothetical)
+            final responseBody = json.jsonDecode(response.body);
+            final userId = responseBody['id']?.toString() ?? '';
             if (userId.isEmpty) {
               setState(() {
                 errorMessage = 'Google login successful, but user ID not found in response';
