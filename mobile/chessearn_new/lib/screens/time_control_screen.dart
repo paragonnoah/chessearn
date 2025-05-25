@@ -18,7 +18,11 @@ class _TimeControlScreenState extends State<TimeControlScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => GameScreen(userId: widget.userId, initialPlayMode: 'online', timeControl: _selectedTimeControl),
+        builder: (context) => GameScreen(
+          userId: widget.userId,
+          initialPlayMode: 'online', // Default to online mode
+          timeControl: _selectedTimeControl,
+        ),
       ),
     );
   }
@@ -26,72 +30,164 @@ class _TimeControlScreenState extends State<TimeControlScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: ChessEarnTheme.themeColors['background-dark'],
       appBar: AppBar(
-        title: const Text('Time'),
+        backgroundColor: ChessEarnTheme.themeColors['brand-dark'],
+        title: Text(
+          'New Game',
+          style: TextStyle(
+            color: ChessEarnTheme.themeColors['text-light'],
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: ChessEarnTheme.themeColors['text-light']),
           onPressed: () => Navigator.pop(context),
         ),
-        backgroundColor: ChessEarnTheme.themeColors['brand-dark'],
       ),
-      body: Container(
-        color: ChessEarnTheme.themeColors['surface-dark'],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildTimeControlSection(
-              title: 'Bullet',
-              icon: Icons.flash_on,
-              options: [
-                {'label': '1 min', 'value': '1|0'},
-                {'label': '1|1', 'value': '1|1'},
-                {'label': '2|1', 'value': '2|1'},
-              ],
-            ),
-            _buildTimeControlSection(
-              title: 'Blitz',
-              icon: Icons.bolt,
-              options: [
-                {'label': '3 min', 'value': '3|0'},
-                {'label': '3|2', 'value': '3|2'},
-                {'label': '5 min', 'value': '5|0'},
-              ],
-            ),
-            _buildTimeControlSection(
-              title: 'Rapid',
-              icon: Icons.timer,
-              options: [
-                {'label': '10 min', 'value': '10|0'},
-                {'label': '15|10', 'value': '15|10'},
-                {'label': '30 min', 'value': '30|0'},
-              ],
-            ),
-            _buildTimeControlSection(
-              title: 'Daily (Max time per move)',
-              icon: Icons.wb_sunny,
-              options: [
-                {'label': '1 day', 'value': '1d'},
-                {'label': '3 days', 'value': '3d'},
-                {'label': '7 days', 'value': '7d'},
-              ],
-            ),
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Text(
-                'More Time Controls ▼',
-                style: TextStyle(color: Colors.grey),
+            // Chess piece icon (placeholder)
+            Center(
+              child: Icon(
+                Icons.handshake, // Replace with a chess piece asset if available
+                size: 60,
+                color: ChessEarnTheme.themeColors['text-light'],
               ),
             ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton(
-                onPressed: _startGame,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+            const SizedBox(height: 20),
+            // Time control selection
+            Card(
+              color: ChessEarnTheme.themeColors['surface-dark'],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer,
+                          color: ChessEarnTheme.themeColors['brand-accent'],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _selectedTimeControl.replaceAll('|', ' | '),
+                          style: TextStyle(
+                            color: ChessEarnTheme.themeColors['text-light'],
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: ChessEarnTheme.themeColors['text-muted'],
+                      ),
+                      onPressed: () => _showTimeControlDialog(context),
+                    ),
+                  ],
                 ),
-                child: const Text('Start Game', style: TextStyle(fontSize: 18)),
               ),
+            ),
+            const SizedBox(height: 20),
+            // Start Game button
+            ElevatedButton(
+              onPressed: _startGame,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
+                padding: const EdgeInsets.symmetric(vertical: 15),
+              ),
+              child: Text(
+                'Start Game',
+                style: TextStyle(
+                  color: ChessEarnTheme.themeColors['text-light'],
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Game mode options
+            _buildOptionCard(
+              icon: Icons.emoji_events,
+              title: 'Tournaments',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Tournaments feature coming soon!')),
+                );
+              },
+            ),
+            _buildOptionCard(
+              icon: Icons.handshake,
+              title: 'Play a Friend',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Play a Friend feature coming soon!')),
+                );
+              },
+            ),
+            _buildOptionCard(
+              icon: Icons.computer,
+              title: 'Play a Bot',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GameScreen(
+                      userId: widget.userId,
+                      initialPlayMode: 'computer',
+                      timeControl: _selectedTimeControl,
+                    ),
+                  ),
+                );
+              },
+            ),
+            _buildOptionCard(
+              icon: Icons.person,
+              title: 'Play Coach',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Play Coach feature coming soon!')),
+                );
+              },
+            ),
+            ExpansionTile(
+              title: Text(
+                'More',
+                style: TextStyle(
+                  color: ChessEarnTheme.themeColors['text-light'],
+                  fontSize: 18,
+                ),
+              ),
+              collapsedBackgroundColor: ChessEarnTheme.themeColors['surface-dark'],
+              backgroundColor: ChessEarnTheme.themeColors['surface-dark'],
+              children: [
+                _buildOptionCard(
+                  icon: Icons.settings,
+                  title: 'Custom Game',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Custom Game feature coming soon!')),
+                    );
+                  },
+                ),
+                _buildOptionCard(
+                  icon: Icons.group,
+                  title: 'Play in Person',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Play in Person feature coming soon!')),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -99,29 +195,100 @@ class _TimeControlScreenState extends State<TimeControlScreen> {
     );
   }
 
+  Widget _buildOptionCard({required IconData icon, required String title, required VoidCallback onTap}) {
+    return Card(
+      color: ChessEarnTheme.themeColors['surface-dark'],
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: ChessEarnTheme.themeColors['brand-accent'],
+          size: 30,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: ChessEarnTheme.themeColors['text-light'],
+            fontSize: 18,
+          ),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  void _showTimeControlDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Select Time Control', style: TextStyle(color: ChessEarnTheme.themeColors['text-light'])),
+          backgroundColor: ChessEarnTheme.themeColors['surface-dark'],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTimeControlSection(
+                  title: 'Bullet',
+                  options: [
+                    {'label': '1 min', 'value': '1|0'},
+                    {'label': '1|1', 'value': '1|1'},
+                    {'label': '2|1', 'value': '2|1'},
+                  ],
+                ),
+                _buildTimeControlSection(
+                  title: 'Blitz',
+                  options: [
+                    {'label': '3 min', 'value': '3|0'},
+                    {'label': '3|2', 'value': '3|2'},
+                    {'label': '5 min', 'value': '5|0'},
+                  ],
+                ),
+                _buildTimeControlSection(
+                  title: 'Rapid',
+                  options: [
+                    {'label': '10 min', 'value': '10|0'},
+                    {'label': '15|10', 'value': '15|10'},
+                    {'label': '30 min', 'value': '30|0'},
+                  ],
+                ),
+                _buildTimeControlSection(
+                  title: 'Daily',
+                  options: [
+                    {'label': '1 day', 'value': '1d'},
+                    {'label': '3 days', 'value': '3d'},
+                    {'label': '7 days', 'value': '7d'},
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close', style: TextStyle(color: ChessEarnTheme.themeColors['brand-accent'])),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildTimeControlSection({
     required String title,
-    required IconData icon,
     required List<Map<String, String>> options,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: ChessEarnTheme.themeColors['brand-accent']),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: ChessEarnTheme.themeColors['text-light'],
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+          Text(
+            title,
+            style: TextStyle(
+              color: ChessEarnTheme.themeColors['text-light'],
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -133,6 +300,7 @@ class _TimeControlScreenState extends State<TimeControlScreen> {
                   setState(() {
                     _selectedTimeControl = option['value']!;
                   });
+                  Navigator.pop(context); // Close the dialog after selection
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _selectedTimeControl == option['value']

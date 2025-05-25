@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 class WatchScreen extends StatelessWidget {
   final String? userId;
 
-  WatchScreen({super.key, required this.userId});
+  const WatchScreen({super.key, required this.userId});
 
   // Dynamic tutorial list with daily rotation
   List<Map<String, String>> _getDailyTutorials() {

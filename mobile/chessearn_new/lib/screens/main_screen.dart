@@ -40,6 +40,28 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedIndex = index;
     });
+    // Show a snackbar to confirm navigation (for debugging)
+    String tabName = '';
+    switch (index) {
+      case 0:
+        tabName = 'Home';
+        break;
+      case 1:
+        tabName = 'Puzzles';
+        break;
+      case 2:
+        tabName = 'Learn';
+        break;
+      case 3:
+        tabName = 'Watch';
+        break;
+      case 4:
+        tabName = 'More';
+        break;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Navigated to $tabName tab')),
+    );
   }
 
   // Home tab content (current MainScreen content)
@@ -95,12 +117,9 @@ class _MainScreenState extends State<MainScreen> {
               title: 'Solve Puzzles',
               subtitle: 'Start Your Journey! 0/2',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PuzzleScreen(userId: widget.userId),
-                  ),
-                );
+                setState(() {
+                  _selectedIndex = 1; // Switch to Puzzles tab
+                });
               },
             ),
             const SizedBox(height: 16),
@@ -278,7 +297,15 @@ class _MainScreenState extends State<MainScreen> {
         leading: Image.asset('assets/images/chess_board.png', width: 50, height: 50),
         title: Text(title, style: TextStyle(color: ChessEarnTheme.themeColors['text-light'])),
         subtitle: Text(subtitle, style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'])),
-        onTap: onTap,
+        onTap: () {
+          if (title == 'Solve Puzzles') {
+            setState(() {
+              _selectedIndex = 1; // Switch to Puzzles tab
+            });
+          } else {
+            onTap();
+          }
+        },
       ),
     );
   }

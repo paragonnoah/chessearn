@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -225,6 +224,67 @@ class ApiService {
         'country': 'KE', // Kenya (mocked)
         'wallet_balance': 1000.0, // Mocked balance in USD
       };
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      print('Attempting to search users with URL: $baseUrl/users/search?query=$query');
+      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/search?query=$query'),
+        headers: {
+          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+        },
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        print('Search users request timed out');
+        throw Exception('Search users request timed out. Please try again later.');
+      });
+
+      print('Search users response: ${response.statusCode} - ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data.cast<Map<String, dynamic>>();
+        } else {
+          throw Exception('Unexpected response format: ${response.body}');
+        }
+      } else {
+        throw Exception('Failed to search users: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Search users error: $e');
+      throw Exception('Failed to search users: $e');
+    }
+  }
+
+  static Future<void> sendFriendRequest(String userId, String friendId) async {
+    try {
+      print('Attempting to send friend request with URL: $baseUrl/friends/request');
+      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
+      final response = await http.post(
+        Uri.parse('$baseUrl/friends/request'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': _csrfToken ?? '',
+          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'friendId': friendId,
+        }),
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        print('Friend request timed out');
+        throw Exception('Friend request timed out. Please try again later.');
+      });
+
+      print('Friend request response: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to send friend request: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Friend request error: $e');
+      throw Exception('Failed to send friend request: $e');
     }
   }
 }

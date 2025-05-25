@@ -32,5 +32,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/chess_board.png  # Explicitly list the chess board image
-    - assets/                       # Wildcard for additional assets
+    - assets/images/chess_board.png 
+    - assets/images/coach_avatar.png

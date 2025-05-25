@@ -11,13 +11,15 @@ import 'dart:async';
 class GameScreen extends StatefulWidget {
   final String? userId;
   final String initialPlayMode;
-  final String? timeControl; // New parameter
+  final String? timeControl;
+  final String? opponentId; // Added to accept the friend's userId
 
   const GameScreen({
     super.key,
     required this.userId,
     required this.initialPlayMode,
     this.timeControl,
+    this.opponentId,
   });
 
   @override
@@ -27,7 +29,8 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   ChessBoardController controller = ChessBoardController();
   String gameStatus = 'White to move';
-  List<String> moveHistory = [];
+  List<String> moveHistory = []; // Track SAN moves manually
+  List<Map<String, String>> pairedMoves = []; // For displaying moves like "1. e4 e5"
   bool showLegalMoves = true;
   String? selectedSquare;
   List<String> legalDestinations = [];
@@ -36,38 +39,60 @@ class _GameScreenState extends State<GameScreen> {
   bool isUserTurn = true;
   late String playMode;
   int earnedPoints = 0;
+  bool drawOffered = false;
+  bool drawAccepted = false;
+  String? lastFenBeforeMove; // Track the FEN before the last move, explicitly typed as String?
 
   // Timer variables
-  late int whiteTime; // In seconds
-  late int blackTime; // In seconds
-  int whiteIncrement = 0; // Increment per move in seconds
-  int blackIncrement = 0; // Increment per move in seconds
+  late int whiteTime;
+  late int blackTime;
+  int whiteIncrement = 0;
+  int blackIncrement = 0;
   Timer? _timer;
   bool isGameOver = false;
+
+  // Messages section
+  List<Map<String, String>> messages = [
+    {'sender': 'You', 'text': 'Good luck!'},
+    {'sender': 'Opponent', 'text': 'Thanks, you too!'},
+  ];
 
   @override
   void initState() {
     super.initState();
     playMode = widget.initialPlayMode;
     playAgainstComputer = playMode == 'computer';
-    
-    // Initialize timers based on timeControl (e.g., "15|10" means 15 minutes + 10 seconds increment)
     _initializeTimers();
-    
     _checkGameState();
-    controller.addListener(_updateLegalMoves);
+    lastFenBeforeMove = controller.game.fen; // Initialize with starting position
     _startTimer();
+    if (playMode == 'online' && widget.opponentId != null) {
+      _startOnlineGameWithOpponent();
+    }
+  }
+
+  void _startOnlineGameWithOpponent() async {
+    try {
+      // Notify the backend to start a game session with the opponent
+      await ApiService.postGameMove('start_game:${widget.opponentId}');
+      setState(() {
+        messages.add({'sender': 'System', 'text': 'Game started with opponent!'});
+      });
+    } catch (e) {
+      setState(() {
+        gameStatus = 'Failed to start game: $e';
+      });
+    }
   }
 
   void _initializeTimers() {
     if (widget.timeControl == null || widget.timeControl == 'N/A') {
-      whiteTime = 600; // Default to 10 minutes if no time control
+      whiteTime = 600;
       blackTime = 600;
       return;
     }
 
     if (widget.timeControl!.contains('d')) {
-      // Daily games: set a large timer (e.g., 1 day = 86400 seconds)
       final days = int.parse(widget.timeControl!.replaceAll('d', ''));
       whiteTime = days * 24 * 60 * 60;
       blackTime = whiteTime;
@@ -76,7 +101,7 @@ class _GameScreenState extends State<GameScreen> {
 
     final parts = widget.timeControl!.split('|');
     final minutes = int.parse(parts[0]);
-    whiteTime = minutes * 60; // Convert minutes to seconds
+    whiteTime = minutes * 60;
     blackTime = whiteTime;
     if (parts.length > 1) {
       whiteIncrement = int.parse(parts[1]);
@@ -85,7 +110,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _startTimer() {
-    _timer?.cancel(); // Cancel any existing timer
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (isGameOver) {
         timer.cancel();
@@ -137,11 +162,18 @@ class _GameScreenState extends State<GameScreen> {
       } else {
         gameStatus = '${game.turn == chess.Color.WHITE ? 'White' : 'Black'} to move';
       }
-      final moveList = game.moves().map((move) => move.toString()).toList();
-      if (moveList.isNotEmpty) {
-        moveHistory = moveList.reversed.toList();
-      } else {
-        moveHistory = [];
+
+      // Update paired moves from moveHistory
+      pairedMoves = [];
+      for (int i = 0; i < moveHistory.length; i += 2) {
+        final moveNumber = (i ~/ 2) + 1;
+        final whiteMove = moveHistory[i];
+        final blackMove = i + 1 < moveHistory.length ? moveHistory[i + 1] : '';
+        pairedMoves.add({
+          'moveNumber': moveNumber.toString(),
+          'whiteMove': whiteMove,
+          'blackMove': blackMove,
+        });
       }
     });
 
@@ -154,7 +186,6 @@ class _GameScreenState extends State<GameScreen> {
       });
     }
 
-    // Apply increment after a move
     if (!isGameOver) {
       if (controller.game.turn == chess.Color.BLACK && isUserTurn) {
         whiteTime += whiteIncrement;
@@ -174,14 +205,25 @@ class _GameScreenState extends State<GameScreen> {
       controller.game.reset();
       gameStatus = 'White to move';
       moveHistory.clear();
+      pairedMoves.clear();
       selectedSquare = null;
       legalDestinations.clear();
       isUserTurn = true;
       isGameOver = false;
-      _initializeTimers(); // Reset timers
+      drawOffered = false;
+      drawAccepted = false;
+      messages = [
+        {'sender': 'You', 'text': 'Good luck!'},
+        {'sender': 'Opponent', 'text': 'Thanks, you too!'},
+      ];
+      lastFenBeforeMove = controller.game.fen;
+      _initializeTimers();
       if (playMode == 'computer' && !isUserTurn) _makeComputerMove();
       _checkGameState();
-      _startTimer(); // Restart timer
+      _startTimer();
+      if (playMode == 'online' && widget.opponentId != null) {
+        _startOnlineGameWithOpponent();
+      }
     });
   }
 
@@ -190,7 +232,20 @@ class _GameScreenState extends State<GameScreen> {
       if (moveHistory.isNotEmpty) {
         final game = controller.game;
         game.undo();
+        if (moveHistory.length > 1) game.undo(); // Undo both moves if possible
         moveHistory.removeLast();
+        if (moveHistory.isNotEmpty) moveHistory.removeLast(); // Remove pair
+        pairedMoves.clear();
+        for (int i = 0; i < moveHistory.length; i += 2) {
+          final moveNumber = (i ~/ 2) + 1;
+          final whiteMove = moveHistory[i];
+          final blackMove = i + 1 < moveHistory.length ? moveHistory[i + 1] : '';
+          pairedMoves.add({
+            'moveNumber': moveNumber.toString(),
+            'whiteMove': whiteMove,
+            'blackMove': blackMove,
+          });
+        }
         selectedSquare = null;
         legalDestinations.clear();
         isUserTurn = true;
@@ -213,50 +268,44 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _makeComputerMove() {
-    print('Attempting computer move...');
-    print('isUserTurn: $isUserTurn, playAgainstComputer: $playAgainstComputer');
     if (!isUserTurn && playAgainstComputer) {
       final game = controller.game;
-      print('Game turn: ${game.turn == chess.Color.WHITE ? 'White' : 'Black'}');
       final computerMove = _getComputerMove(game);
       if (computerMove != null) {
-        print('Computer move selected: $computerMove');
         try {
           final from = computerMove.substring(0, 2);
           final to = computerMove.substring(2, 4);
-          print('Making move from $from to $to');
-          controller.makeMove(from: from, to: to);
-          moveHistory.insert(0, computerMove);
-          _checkGameState();
-          isUserTurn = true;
-          print('Computer move completed, isUserTurn: $isUserTurn');
-          if (widget.userId != null) {
-            ApiService.postGameMove(computerMove).catchError((e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to sync computer move: $e')),
-              );
-            });
+          final tempGame = chess.Chess.fromFEN(game.fen);
+          final moveResult = tempGame.move({'from': from, 'to': to});
+          if (moveResult is Map<String, dynamic> && moveResult.containsKey('san')) {
+            final sanMove = moveResult['san'] as String;
+            controller.makeMove(from: from, to: to);
+            moveHistory.insert(0, sanMove);
+            messages.add({'sender': 'Opponent', 'text': 'Nice move!'});
+            _checkGameState();
+            isUserTurn = true;
+            if (widget.userId != null) {
+              ApiService.postGameMove(sanMove).catchError((e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to sync computer move: $e')),
+                );
+              });
+            }
+          } else {
+            isUserTurn = true;
           }
         } catch (e) {
-          print('Error making computer move: $e');
           isUserTurn = true;
         }
       } else {
-        print('No computer move available');
         isUserTurn = true;
       }
-    } else {
-      print('Conditions not met for computer move');
     }
   }
 
   String? _getComputerMove(chess.Chess game) {
     final legalMoves = game.moves();
-    print('Legal moves: $legalMoves');
-    if (legalMoves.isEmpty) {
-      print('No legal moves available');
-      return null;
-    }
+    if (legalMoves.isEmpty) return null;
     if (difficulty == 'Easy') {
       return _getEasyMove(legalMoves);
     } else if (difficulty == 'Medium') {
@@ -268,9 +317,7 @@ class _GameScreenState extends State<GameScreen> {
 
   String _getEasyMove(List<dynamic> legalMoves) {
     final random = Random();
-    final move = legalMoves[random.nextInt(legalMoves.length)].toString();
-    print('Easy move selected: $move');
-    return move;
+    return legalMoves[random.nextInt(legalMoves.length)].toString();
   }
 
   String _getMediumMove(chess.Chess game, List<dynamic> legalMoves) {
@@ -278,12 +325,8 @@ class _GameScreenState extends State<GameScreen> {
       final tempGame = chess.Chess.fromFEN(game.fen);
       tempGame.move(move);
       final moveStr = move.toString();
-      if (moveStr.contains('x')) {
-        print('Medium move (capture) selected: $moveStr');
-        return moveStr;
-      }
+      if (moveStr.contains('x')) return moveStr;
     }
-    print('No capture move found, falling back to easy move');
     return _getEasyMove(legalMoves);
   }
 
@@ -299,7 +342,6 @@ class _GameScreenState extends State<GameScreen> {
         bestMove = move.toString();
       }
     }
-    print('Hard move selected: $bestMove');
     return bestMove ?? _getEasyMove(legalMoves);
   }
 
@@ -337,6 +379,132 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  void _offerDraw() {
+    if (isGameOver) return;
+    setState(() {
+      drawOffered = true;
+      messages.add({'sender': 'You', 'text': 'I offer a draw.'});
+    });
+
+    if (playAgainstComputer) {
+      final random = Random();
+      final acceptDraw = random.nextBool();
+      Future.delayed(const Duration(seconds: 1), () {
+        setState(() {
+          if (acceptDraw) {
+            drawAccepted = true;
+            gameStatus = 'Draw accepted!';
+            isGameOver = true;
+            messages.add({'sender': 'Opponent', 'text': 'Draw accepted!'});
+          } else {
+            messages.add({'sender': 'Opponent', 'text': 'Draw declined.'});
+            drawOffered = false;
+          }
+        });
+      });
+    }
+  }
+
+  void _resignGame() {
+    if (isGameOver) return;
+    setState(() {
+      gameStatus = 'You resigned! Opponent wins!';
+      isGameOver = true;
+      messages.add({'sender': 'You', 'text': 'I resign.'});
+      messages.add({'sender': 'Opponent', 'text': 'Good game!'});
+    });
+  }
+
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Settings'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Settings options coming soon!'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleMove() {
+    final game = controller.game;
+    if (game.history.isNotEmpty && isUserTurn) {
+      final currentFen = game.fen;
+      if (lastFenBeforeMove != null) {
+        final tempGame = chess.Chess.fromFEN(lastFenBeforeMove!);
+        final moves = tempGame.generate_moves();
+        for (var move in moves) {
+          final tempGameCopy = chess.Chess.fromFEN(lastFenBeforeMove!);
+          final moveResult = tempGameCopy.move({
+            'from': move['from'],
+            'to': move['to'],
+          });
+          if (moveResult is Map<String, dynamic> && moveResult.containsKey('san')) {
+            final newFen = tempGameCopy.fen;
+            if (newFen == currentFen) {
+              final sanMove = moveResult['san'] as String;
+              setState(() {
+                moveHistory.insert(0, sanMove);
+                _checkGameState();
+                messages.add({'sender': 'You', 'text': 'Your move!'});
+                if (playAgainstComputer && !game.game_over && game.turn == chess.Color.BLACK) {
+                  isUserTurn = false;
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    _makeComputerMove();
+                  });
+                } else if (playMode == 'online' && widget.opponentId != null && !game.game_over) {
+                  isUserTurn = false;
+                  _syncMoveWithOpponent(sanMove);
+                } else {
+                  isUserTurn = true;
+                }
+                lastFenBeforeMove = currentFen; // Update for the next move
+              });
+              break;
+            }
+          }
+        }
+      }
+    }
+    if (showLegalMoves) {
+      final moves = game.moves();
+      if (moves.isNotEmpty) {
+        final lastMove = moves.last;
+        final moveStr = lastMove.toString();
+        if (moveStr.length >= 2) {
+          selectedSquare = moveStr.substring(0, 2);
+          _updateLegalMoves();
+        }
+      }
+    }
+  }
+
+  Future<void> _syncMoveWithOpponent(String move) async {
+    try {
+      await ApiService.postGameMove('$move:${widget.opponentId}');
+      setState(() {
+        messages.add({'sender': 'System', 'text': 'Move synced with opponent!'});
+      });
+      // Placeholder for receiving opponent's move (requires WebSocket or polling)
+      isUserTurn = false; // Wait for opponent's move
+    } catch (e) {
+      setState(() {
+        gameStatus = 'Failed to sync move: $e';
+      });
+      isUserTurn = true; // Allow user to retry or continue
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final boardSize = MediaQuery.of(context).size.width * 0.9;
@@ -354,6 +522,7 @@ class _GameScreenState extends State<GameScreen> {
         ),
         child: Column(
           children: [
+            // Header
             Container(
               padding: const EdgeInsets.all(16.0),
               color: ChessEarnTheme.themeColors['brand-dark'],
@@ -366,6 +535,13 @@ class _GameScreenState extends State<GameScreen> {
                       color: ChessEarnTheme.themeColors['text-light'],
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.black45,
+                          offset: Offset(2, 2),
+                          blurRadius: 4,
+                        ),
+                      ],
                     ),
                   ),
                   Row(
@@ -408,6 +584,7 @@ class _GameScreenState extends State<GameScreen> {
                   style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'], fontSize: 16),
                 ),
               ),
+            // Timers and Play Mode
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
@@ -442,7 +619,6 @@ class _GameScreenState extends State<GameScreen> {
                           onChanged: (value) {
                             setState(() {
                               playAgainstComputer = value;
-                              print('Play vs Computer toggled to: $playAgainstComputer');
                               if (value && !isUserTurn) _makeComputerMove();
                             });
                           },
@@ -454,7 +630,6 @@ class _GameScreenState extends State<GameScreen> {
                             onChanged: (String? newValue) {
                               setState(() {
                                 difficulty = newValue!;
-                                print('Difficulty changed to: $difficulty');
                                 if (!isUserTurn) _makeComputerMove();
                               });
                             },
@@ -507,6 +682,7 @@ class _GameScreenState extends State<GameScreen> {
                 ],
               ),
             ),
+            // Main Game Content
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -515,35 +691,7 @@ class _GameScreenState extends State<GameScreen> {
                     if (playMode.isNotEmpty)
                       Column(
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Show Legal Moves',
-                                  style: TextStyle(
-                                    color: ChessEarnTheme.themeColors['text-light'],
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Switch(
-                                  value: showLegalMoves,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      showLegalMoves = value;
-                                      if (!showLegalMoves) {
-                                        selectedSquare = null;
-                                        legalDestinations.clear();
-                                      }
-                                    });
-                                  },
-                                  activeColor: ChessEarnTheme.themeColors['brand-accent'],
-                                ),
-                              ],
-                            ),
-                          ),
+                          // Chessboard
                           Container(
                             margin: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
                             decoration: BoxDecoration(
@@ -562,34 +710,9 @@ class _GameScreenState extends State<GameScreen> {
                                   boardColor: BoardColor.brown,
                                   size: boardSize,
                                   onMove: () {
-                                    print('User made a move');
-                                    setState(() {
-                                      _checkGameState();
-                                      print('Game over: ${controller.game.game_over}, Play vs Computer: $playAgainstComputer');
-                                      print('Current turn: ${controller.game.turn == chess.Color.WHITE ? 'White' : 'Black'}');
-                                      if (playAgainstComputer && !controller.game.game_over && controller.game.turn == chess.Color.BLACK) {
-                                        isUserTurn = false;
-                                        print('Scheduling computer move');
-                                        Future.delayed(const Duration(milliseconds: 500), () {
-                                          print('Executing scheduled computer move');
-                                          _makeComputerMove();
-                                        });
-                                      } else {
-                                        isUserTurn = true;
-                                        print('No computer move scheduled, isUserTurn: $isUserTurn');
-                                      }
-                                    });
-                                    if (showLegalMoves) {
-                                      final game = controller.game;
-                                      final moves = game.moves().map((move) => move.toString()).toList();
-                                      if (moves.isNotEmpty) {
-                                        final lastMove = moves.last;
-                                        if (lastMove.length >= 2) {
-                                          selectedSquare = lastMove.substring(0, 2);
-                                          _updateLegalMoves();
-                                        }
-                                      }
-                                    }
+                                    // Capture the FEN before the move is processed (use the current FEN as pre-move state)
+                                    lastFenBeforeMove = controller.game.fen;
+                                    _handleMove();
                                   },
                                   enableUserMoves: isUserTurn || !playAgainstComputer || playMode == 'online',
                                 ),
@@ -615,6 +738,7 @@ class _GameScreenState extends State<GameScreen> {
                               ],
                             ),
                           ),
+                          // Game Status and Points
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -630,28 +754,131 @@ class _GameScreenState extends State<GameScreen> {
                               ],
                             ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton(
-                                onPressed: _resetGame,
-                                child: const Text('New Game'),
-                              ),
-                              const SizedBox(width: 10),
-                              ElevatedButton(
-                                onPressed: moveHistory.isNotEmpty ? _undoMove : null,
-                                child: const Text('Undo Move'),
-                              ),
-                            ],
+                          // Options: Draw, Resign, Settings
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: drawOffered || isGameOver ? null : _offerDraw,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text('Draw'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: isGameOver ? null : _resignGame,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text('Resign'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: _showSettingsDialog,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text('Settings'),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 20),
+                          // Move History
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Move History',
+                                  'Moves',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: ChessEarnTheme.themeColors['text-light'],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  height: 150,
+                                  padding: const EdgeInsets.all(8.0),
+                                  decoration: BoxDecoration(
+                                    color: ChessEarnTheme.themeColors['surface-dark'],
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        offset: Offset(0, 2),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: ListView.builder(
+                                    itemCount: pairedMoves.length,
+                                    itemBuilder: (context, index) {
+                                      final move = pairedMoves[index];
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          children: [
+                                            SizedBox(
+                                              width: 40,
+                                              child: Text(
+                                                '${move['moveNumber']}.',
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                move['whiteMove']!,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            if (move['blackMove']!.isNotEmpty)
+                                              Expanded(
+                                                child: Text(
+                                                  move['blackMove']!,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          // Messages Section
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Messages',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -665,20 +892,44 @@ class _GameScreenState extends State<GameScreen> {
                                   decoration: BoxDecoration(
                                     color: ChessEarnTheme.themeColors['surface-dark']!.withOpacity(0.5),
                                     borderRadius: BorderRadius.circular(10),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        offset: Offset(0, 2),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
                                   ),
                                   child: ListView.builder(
-                                    itemCount: moveHistory.length,
+                                    itemCount: messages.length,
                                     itemBuilder: (context, index) {
-                                      final moveNumber = (index ~/ 2) + 1;
-                                      final isWhiteMove = index % 2 == 0;
-                                      final moveText = isWhiteMove
-                                          ? '$moveNumber. ${moveHistory[index]}'
-                                          : moveHistory[index];
-                                      return Text(
-                                        moveText,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: ChessEarnTheme.themeColors['text-light'],
+                                      final message = messages[index];
+                                      final isUser = message['sender'] == 'You';
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                                          children: [
+                                            if (!isUser)
+                                              const Icon(Icons.person, color: Colors.white, size: 16),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.all(8.0),
+                                              decoration: BoxDecoration(
+                                                color: isUser ? Colors.blueAccent : Colors.grey,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                '${message['sender']}: ${message['text']}',
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                            ),
+                                            if (isUser)
+                                              const SizedBox(width: 8),
+                                            if (isUser)
+                                              const Icon(Icons.person, color: Colors.white, size: 16),
+                                          ],
                                         ),
                                       );
                                     },
@@ -686,6 +937,34 @@ class _GameScreenState extends State<GameScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          const SizedBox(height: 20),
+                          // New Game and Undo Buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton(
+                                onPressed: _resetGame,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text('New Game'),
+                              ),
+                              const SizedBox(width: 10),
+                              ElevatedButton(
+                                onPressed: moveHistory.isNotEmpty && !isGameOver ? _undoMove : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text('Undo Move'),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 20),
                         ],
@@ -703,8 +982,22 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    controller.removeListener(_updateLegalMoves);
     controller.dispose();
     super.dispose();
+  }
+}
+
+extension on bool {
+  bool containsKey(String s) => false; // Always return false for bool, as it doesn’t support keys
+  
+  dynamic operator [](String other) => throw UnsupportedError('Cannot use index operator on bool'); // Throw error to prevent invalid usage
+}
+
+extension on chess.Move {
+  dynamic operator [](String other) {
+    if (other == 'from') return fromAlgebraic;
+    if (other == 'to') return toAlgebraic;
+    if (other == 'san') return null; // SAN isn’t directly on Move, handled by game.move
+    return null; // Default to null for unsupported keys
   }
 }
