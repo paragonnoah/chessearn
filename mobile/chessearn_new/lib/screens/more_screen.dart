@@ -1,7 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:chessearn_new/screens/profile_screen.dart';
+import 'package:chessearn_new/screens/more/profile_more_screen.dart';
 import 'package:chessearn_new/screens/wallet_screen.dart';
+import 'package:chessearn_new/screens/more/messages_more_screen.dart';
+import 'package:chessearn_new/screens/more/statistics_more_screen.dart';
+import 'package:chessearn_new/screens/more/notifications_more_screen.dart';
+import 'package:chessearn_new/screens/more/settings_more_screen.dart';
+import 'package:chessearn_new/screens/more/friends_more_screen.dart'; // Added import
 import 'package:chessearn_new/services/api_service.dart';
 import 'package:chessearn_new/screens/home_screen.dart';
 import 'package:chessearn_new/theme.dart';
@@ -20,8 +25,13 @@ class MoreScreen extends StatefulWidget {
 
 class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   late AnimationController _fadeController;
+  late AnimationController _progressController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _progressAnimation;
   bool _isLoading = false;
+  double userProgress = 0.75;
+  int userLevel = 5;
+  int userXP = 3200;
 
   @override
   void initState() {
@@ -30,15 +40,24 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
     );
+    _progressAnimation = Tween<double>(begin: 0.0, end: userProgress).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeOutCubic),
+    );
     _fadeController.forward();
+    _progressController.forward();
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
@@ -57,13 +76,11 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     }
   }
 
-  // Enhanced M-Pesa implementation
   Future<void> _initMpesa() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
     
     try {
-      // Show phone number input dialog
       final phoneNumber = await _showPhoneNumberDialog();
       if (phoneNumber == null || phoneNumber.isEmpty) {
         setState(() => _isLoading = false);
@@ -76,7 +93,6 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       const String passkey = 'your_passkey';
       const String callbackUrl = 'https://your-callback-url.com/callback';
 
-      // Get access token
       final auth = json.base64Encode(json.utf8.encode('$consumerKey:$consumerSecret'));
       final tokenResponse = await http.get(
         Uri.parse('https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'),
@@ -90,14 +106,12 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       final tokenData = json.jsonDecode(tokenResponse.body);
       final accessToken = tokenData['access_token'];
 
-      // Generate timestamp and password
       final timestamp = DateTime.now()
           .toIso8601String()
           .replaceAll(RegExp(r'[^0-9]'), '')
           .substring(0, 14);
       final password = json.base64Encode(utf8.encode('$shortCode$passkey$timestamp'));
 
-      // Initiate STK Push
       final stkResponse = await http.post(
         Uri.parse('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'),
         headers: {
@@ -109,7 +123,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
           'Password': password,
           'Timestamp': timestamp,
           'TransactionType': 'CustomerPayBillOnline',
-          'Amount': '10', // $0.10 for testing
+          'Amount': '10',
           'PartyA': phoneNumber,
           'PartyB': shortCode,
           'PhoneNumber': phoneNumber,
@@ -136,18 +150,16 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     }
   }
 
-  // Enhanced Stripe Payment Sheet implementation
   Future<void> _payWithCard() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
     
     try {
-      // Create payment intent on your backend
       final response = await http.post(
         Uri.parse('https://your-backend.com/create-payment-intent'),
         headers: {'Content-Type': 'application/json'},
         body: json.jsonEncode({
-          'amount': 1000, // $10.00 in cents
+          'amount': 1000,
           'currency': 'usd',
           'metadata': {
             'user_id': widget.userId ?? 'guest',
@@ -163,7 +175,6 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       final data = json.jsonDecode(response.body);
       final clientSecret = data['clientSecret'];
 
-      // Initialize payment sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           merchantDisplayName: 'ChessEarn',
@@ -182,7 +193,6 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         ),
       );
 
-      // Present payment sheet
       await Stripe.instance.presentPaymentSheet();
       
       _showSuccessSnackBar('Payment successful! Credits added to your account.');
@@ -192,21 +202,6 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       _showErrorSnackBar('Payment failed: ${e.toString()}');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  // Alternative Stripe payment method
-  Future<void> _payWithStripe() async {
-    if (_isLoading) return;
-    setState(() => _isLoading = true);
-    
-    try {
-      // This would typically open a custom card input form
-      _showErrorSnackBar('Use "Add Card" option for secure payments');
-    } catch (e) {
-      _showErrorSnackBar('Stripe payment failed: ${e.toString()}');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -321,7 +316,16 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: ChessEarnTheme.backgroundGradient),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              ChessEarnTheme.themeColors['brand-gradient-start']!,
+              ChessEarnTheme.themeColors['brand-gradient-end']!,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
         child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnimation,
@@ -336,8 +340,15 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
                           ),
                           child: Icon(
                             Icons.more_horiz_rounded,
@@ -346,10 +357,29 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        Text(
-                          'More Options',
-                          style: ChessEarnTheme.headlineStyle.copyWith(fontSize: 28),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'More Options',
+                                style: TextStyle(
+                                  color: ChessEarnTheme.themeColors['text-light'],
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Explore More • ${_getTimeOfDayGreeting()}',
+                                style: TextStyle(
+                                  color: ChessEarnTheme.themeColors['text-light']!.withOpacity(0.8),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        _buildLevelBadge(),
                       ],
                     ),
                   ),
@@ -365,36 +395,57 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                         color: Colors.white.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.white.withOpacity(0.2)),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
-                            child: Icon(Icons.person, color: Colors.white, size: 28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Welcome back!',
-                                  style: TextStyle(
-                                    color: ChessEarnTheme.themeColors['text-light'],
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
+                                child: Icon(Icons.person, color: Colors.white, size: 28),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Welcome back!',
+                                      style: TextStyle(
+                                        color: ChessEarnTheme.themeColors['text-light'],
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      'User ID: ${widget.userId}',
+                                      style: TextStyle(
+                                        color: ChessEarnTheme.themeColors['text-muted'],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  'User ID: ${widget.userId}',
-                                  style: TextStyle(
-                                    color: ChessEarnTheme.themeColors['text-muted'],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Dynamic Stats (Surprise Feature)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildStatCard('Level', '$userLevel', Icons.star, Colors.amber),
+                              _buildStatCard('XP', _formatNumber(userXP), Icons.stars, Colors.purple),
+                              _buildStatCard('Progress', '${(userProgress * 100).toInt()}%', Icons.trending_up, Colors.green),
+                            ],
                           ),
                         ],
                       ),
@@ -408,20 +459,20 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                     delegate: SliverChildListDelegate([
                       _buildMenuSection('Account', [
                         _buildMenuItem(Icons.person_rounded, 'Profile', 'View and edit your profile',
-                          onTap: widget.userId != null ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen(userId: widget.userId!))) : null),
+                          onTap: widget.userId != null ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileMoreScreen(userId: widget.userId!))) : null),
                         _buildMenuItem(Icons.account_balance_wallet_rounded, 'Wallet', 'Manage your earnings',
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => WalletScreen(userId: widget.userId)))),
-                        _buildMenuItem(Icons.bar_chart_rounded, 'Statistics', 'View your game stats', 
-                          onTap: () => _showComingSoonSnackBar('Stats')),
+                        _buildMenuItem(Icons.bar_chart_rounded, 'Statistics', 'View your game stats',
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StatisticsMoreScreen()))),
                       ]),
 
                       _buildMenuSection('Social', [
                         _buildMenuItem(Icons.people_rounded, 'Friends', 'Connect with other players',
-                          onTap: () => _showComingSoonSnackBar('Friends')),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => FriendsMoreScreen(userId: widget.userId)))),
                         _buildMenuItem(Icons.message_rounded, 'Messages', 'Chat with friends',
-                          onTap: () => _showComingSoonSnackBar('Messages')),
-                        _buildMenuItem(Icons.emoji_events_rounded, 'Awards', 'View your achievements',
-                          onTap: () => _showComingSoonSnackBar('Awards')),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesMoreScreen()))),
+                        _buildMenuItem(Icons.notifications_rounded, 'Notifications', 'View your notifications',
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsMoreScreen()))),
                       ]),
 
                       _buildMenuSection('Payments', [
@@ -429,10 +480,8 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                       ]),
 
                       _buildMenuSection('App', [
-                        _buildMenuItem(Icons.palette_rounded, 'Theme', 'Customize app appearance',
-                          onTap: () => _showComingSoonSnackBar('Theme')),
                         _buildMenuItem(Icons.settings_rounded, 'Settings', 'App preferences',
-                          onTap: () => _showComingSoonSnackBar('Settings')),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsMoreScreen()))),
                       ]),
 
                       const SizedBox(height: 32),
@@ -461,6 +510,42 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLevelBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.amber, Colors.orange],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.star, color: Colors.white, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            'Level $userLevel',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -494,6 +579,13 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -558,6 +650,40 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                color: ChessEarnTheme.themeColors['text-light']!.withOpacity(0.7),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showComingSoonSnackBar(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -580,12 +706,12 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
             children: [
               Icon(Icons.logout_rounded, color: ChessEarnTheme.themeColors['error']),
               const SizedBox(width: 8),
-              Text('Logout', style: TextStyle(color: ChessEarnTheme.themeColors['text-dark'])),
+              Text('Logout', style: TextStyle(color: ChessEarnTheme.themeColors['text-light'])),
             ],
           ),
           content: Text(
             'Are you sure you want to logout?',
-            style: TextStyle(color: ChessEarnTheme.themeColors['text-dark']),
+            style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
           ),
           actions: [
             TextButton(
@@ -604,5 +730,19 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         );
       },
     );
+  }
+
+  String _getTimeOfDayGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}k';
+    }
+    return number.toString();
   }
 }

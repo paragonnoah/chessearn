@@ -5,8 +5,9 @@ import 'package:chessearn_new/screens/friend_search_screen.dart';
 import 'package:chessearn_new/screens/learn_screen.dart';
 import 'package:chessearn_new/screens/watch_screen.dart';
 import 'package:chessearn_new/screens/more_screen.dart';
+import 'package:chessearn_new/screens/home_screen.dart'; // Import HomeScreen
 import 'package:chessearn_new/theme.dart';
-import 'time_control_screen.dart'; // Import the new screen
+import 'time_control_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final String? userId;
@@ -18,29 +19,26 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0; // Tracks the currently selected tab
+  int _selectedIndex = 0;
 
-  // List of screens for each tab
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
     _screens = [
-      _buildHomeTab(), // Home tab content
-      PuzzleScreen(userId: widget.userId), // Puzzles tab
-      LearnScreen(userId: widget.userId), // Learn tab
-      WatchScreen(userId: widget.userId), // Watch tab
-      MoreScreen(userId: widget.userId), // More tab
+      _buildHomeTab(),
+      PuzzleScreen(userId: widget.userId),
+      LearnScreen(userId: widget.userId),
+      WatchScreen(userId: widget.userId),
+      MoreScreen(userId: widget.userId),
     ];
   }
 
-  // Handle tab selection
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // Show a snackbar to confirm navigation (for debugging)
     String tabName = '';
     switch (index) {
       case 0:
@@ -64,7 +62,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // Home tab content (current MainScreen content)
   Widget _buildHomeTab() {
     return SingleChildScrollView(
       child: Padding(
@@ -118,7 +115,7 @@ class _MainScreenState extends State<MainScreen> {
               subtitle: 'Start Your Journey! 0/2',
               onTap: () {
                 setState(() {
-                  _selectedIndex = 1; // Switch to Puzzles tab
+                  _selectedIndex = 1;
                 });
               },
             ),
@@ -199,7 +196,6 @@ class _MainScreenState extends State<MainScreen> {
         ),
         child: Column(
           children: [
-            // Simplified AppBar with just the title
             Container(
               padding: const EdgeInsets.all(16.0),
               color: ChessEarnTheme.themeColors['brand-dark'],
@@ -220,13 +216,26 @@ class _MainScreenState extends State<MainScreen> {
             if (widget.userId == null)
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  'Playing as Guest - Sign up to earn rewards!',
-                  style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'], fontSize: 16),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    );
+                  },
+                  child: Text(
+                    'Playing as Guest - Sign up to earn rewards!',
+                    style: TextStyle(
+                      color: ChessEarnTheme.themeColors['brand-accent'],
+                      fontSize: 16,
+                      decoration: TextDecoration.underline,
+                      decorationColor: ChessEarnTheme.themeColors['brand-accent'],
+                    ),
+                  ),
                 ),
               ),
             Expanded(
-              child: _screens[_selectedIndex], // Display the selected tab's screen
+              child: _screens[_selectedIndex],
             ),
           ],
         ),
@@ -259,7 +268,7 @@ class _MainScreenState extends State<MainScreen> {
         unselectedItemColor: ChessEarnTheme.themeColors['text-muted'],
         backgroundColor: ChessEarnTheme.themeColors['surface-dark'],
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // Ensures all items are visible
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
@@ -300,7 +309,7 @@ class _MainScreenState extends State<MainScreen> {
         onTap: () {
           if (title == 'Solve Puzzles') {
             setState(() {
-              _selectedIndex = 1; // Switch to Puzzles tab
+              _selectedIndex = 1;
             });
           } else {
             onTap();

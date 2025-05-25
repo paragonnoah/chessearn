@@ -287,4 +287,66 @@ class ApiService {
       throw Exception('Failed to send friend request: $e');
     }
   }
+
+  // New method: Deposit funds
+  static Future<void> depositFunds(String userId, double amount) async {
+    try {
+      print('Attempting to deposit funds with URL: $baseUrl/wallet/deposit');
+      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
+      final response = await http.post(
+        Uri.parse('$baseUrl/wallet/deposit'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': _csrfToken ?? '',
+          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'amount': amount,
+        }),
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        print('Deposit request timed out');
+        throw Exception('Deposit request timed out. Please try again later.');
+      });
+
+      print('Deposit response: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to deposit funds: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Deposit error: $e');
+      throw Exception('Failed to deposit funds: $e');
+    }
+  }
+
+  // New method: Withdraw funds
+  static Future<void> withdrawFunds(String userId, double amount) async {
+    try {
+      print('Attempting to withdraw funds with URL: $baseUrl/wallet/withdraw');
+      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
+      final response = await http.post(
+        Uri.parse('$baseUrl/wallet/withdraw'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': _csrfToken ?? '',
+          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'amount': amount,
+        }),
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        print('Withdraw request timed out');
+        throw Exception('Withdraw request timed out. Please try again later.');
+      });
+
+      print('Withdraw response: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to withdraw funds: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Withdraw error: $e');
+      throw Exception('Failed to withdraw funds: $e');
+    }
+  }
 }
