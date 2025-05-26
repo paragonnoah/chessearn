@@ -11,45 +11,54 @@ import 'dart:async';
 Future<void> requestPermissions() async {
   Map<Permission, PermissionStatus> statuses = await [
     Permission.camera,
-    Permission.storage,
+    Permission.photos,
   ].request();
-  if (!statuses[Permission.camera]!.isGranted || !statuses[Permission.storage]!.isGranted) {
+  if (!statuses[Permission.camera]!.isGranted ||
+      !statuses[Permission.photos]!.isGranted) {
     print("Permissions denied - some features may not work");
   }
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Stripe
-  Stripe.publishableKey = 'pk_test_51YourActualStripeKeyHere'; // Replace with your key
-  await Stripe.instance.applySettings();
-
-  // Request permissions
-  await requestPermissions();
-
-  // Initialize SharedPreferences
+Future<Widget> _initializeApp({required String? userId}) async {
+  // Initialize SharedPreferences (minimal impact, keep on main thread)
   final prefs = await SharedPreferences.getInstance();
   final String? accessToken = prefs.getString('access_token');
 
-  // Start the app with error handling
-  runZonedGuarded(() {
-    runApp(ChessEarnApp(
-      initialRoute: accessToken != null
-          ? GameScreen(
-              userId: prefs.getString('userId') ?? '',
-              initialPlayMode: 'computer',
-            )
-          : const HomeScreen(),
-    ));
+  // Defer Stripe initialization to background
+  Future.microtask(() async {
+    Stripe.publishableKey = 'pk_test_your_actual_stripe_key_here'; // Replace with your key
+    await Stripe.instance.applySettings();
+  });
+
+  // Defer API initialization to background
+  Future.microtask(() async {
+    await ApiService.initializeCookieJar();
+  });
+
+  // Return initial route immediately
+  return accessToken != null
+      ? GameScreen(
+          userId: userId ?? prefs.getString('userId') ?? '',
+          initialPlayMode: 'computer',
+        )
+      : const HomeScreen();
+}
+
+void main() {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Request permissions (needs to be on main thread for UI prompts)
+    await requestPermissions();
+
+    // Initialize app and get initial route
+    final initialRoute = await _initializeApp(userId: null);
+
+    // Run the app
+    runApp(ChessEarnApp(initialRoute: initialRoute));
   }, (error, stackTrace) {
     print('Uncaught error: $error');
     print('Stack trace: $stackTrace');
-  });
-
-  // Defer heavy initialization
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    await ApiService.initializeCookieJar();
   });
 }
 

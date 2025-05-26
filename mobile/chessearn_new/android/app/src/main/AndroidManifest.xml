@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Permissions for image_picker -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <!-- For Android 13+ (API 33+), use granular media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <!-- Camera permission for image_picker with camera source -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Biometric permission for local_auth -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <!-- Internet permission for API calls -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="chessearn_new"
+        android:label="ChessEarn"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -26,8 +26,7 @@
             <!-- Specifies an Android theme to apply to this Activity after the Flutter UI initializes -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme"
-                />
+                android:resource="@style/NormalTheme"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -36,9 +35,9 @@
         <!-- Don't delete the meta-data below. This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
-            android:value="2" />
+            android:value="2"/>
     </application>
-    <!-- Required to query activities that can process text -->
+    <!-- Required to query activities that can process text (optional, remove if unused) -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
