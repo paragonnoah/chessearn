@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="1" master_id="0" name="firstphase" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="1" foreground="#ff0000" ts_creation="1748437405" ts_lastsave="1748437533">
+    <rich_text>ChessEarn App (Phase 2)
+├── Main Screen
+│   ├── Navigation to Scoreboard
+│   ├── Navigation to Friends List
+│   └── Navigation to Profile
+├── Login Screen
+│   ├── Email/Password Fields
+│   └── API Call: Login (POST /auth/login)
+├── Signup Screen
+│   ├── Username/Email/Password Fields
+│   └── API Call: Register (POST /auth/register)
+├── Game Screen
+│   ├── Chessboard UI
+│   ├── WebSocket Connection (Real-time 1v1)
+│   └── API Call: Create/Join Game (POST /game/create, /game/join)
+├── Scoreboard Screen
+│   ├── Rankings List (Top 100 Players)
+│   └── API Call: Fetch Rankings (GET /rankings)
+├── Friend Search Screen
+│   ├── Search Bar
+│   ├── Friend Request Button
+│   └── API Call: Send/Accept Friend Request (POST /friends/request, /friends/accept)
+├── Friends List
+│   ├── Online Status Indicators
+│   └── API Call: Fetch Friends (GET /friends)
+└── Profile Screen
+    ├── User Stats (Username, Rating, Games Played)
+    ├── Photo Upload (Image Picker)
+    └── API Call: Fetch Profile (GET /profile)</rich_text>
+  </node>
+</cherrytree>

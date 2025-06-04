@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="2" master_id="0" name="main_screen" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="132" is_bold="1" foreground="" ts_creation="1748437533" ts_lastsave="1748443101">
+    <rich_text>MainScreen
+├── Scaffold
+│   ├── body: Container (Gradient Background)
+│   │   └── SafeArea
+│   │       ├── Column
+│   │       │   ├── SlideTransition (Custom App Bar)
+│   │       │   │   └── Container
+│   │       │   │       ├── Row
+│   │       │   │       │   ├── Row (Logo &amp; Title)
+│   │       │   │       │   │   ├── Container (Chess Icon)
+│   │       │   │       │   │   └── Column (ChessEarn, Welcome Text)
+│   │       │   │       │   └── Row (Wallet &amp; Notifications)
+│   │       │   │       │       ├── GestureDetector (Wallet)
+│   │       │   │       │       │   └── Container (Balance or Loading)
+│   │       │   │       │       └── Stack (Notifications)
+│   │       │   │       │           ├── Container (IconButton)
+│   │       │   │       │           └── Positioned (Notification Count)
+│   │       │   ├── Container (Guest Warning Banner, conditional)
+│   │       │   │   └── Row (Icon, Text, Log In Button, Sign Up Button)
+│   │       │   └── Expanded
+│   │       │       └── _screens[_selectedIndex] (Home/Puzzle/Learn/Watch/More)
+│   │       │           └── CustomScrollView (Home Tab)
+│   │       │               ├── SliverToBoxAdapter
+│   │       │               │   └── Column
+│   │       │               │       ├── _buildQuickStatsRow (Dynamic)
+│   │       │               │       │   └── Row (Rating, Wins, Streak Cards)
+│   │       │               │       ├── _buildRankingsButton (New)
+│   │       │               │       │   └── Container (Leaderboard Button)
+│   │       │               │       ├── _buildFeaturedMatchSection
+│   │       │               │       │   └── Column (Title, Match Card)
+│   │       │               │       ├── _buildGameModesGrid
+│   │       │               │       │   └── Column (Title, GridView)
+│   │       │               │       ├── _buildDailyChallengeCard
+│   │       │               │       │   └── Container (Animated Icon, Text)
+│   │       │               │       ├── _buildFriendsSection (Dynamic)
+│   │       │               │       │   └── Column (Title, ListView.builder)
+│   │       │               │       ├── _buildProfileButton (New)
+│   │       │               │       │   └── Container (Profile Button)
+│   │       │               │       └── _buildAchievementBanner
+│   │       │               │           └── Row (Icon, Text)
+│   └── bottomNavigationBar: Container
+│       └── BottomNavigationBar (Home, Puzzles, Learn, Watch, More)
+└── showModalBottomSheet (Notifications)
+    └── Container
+        ├── Column
+        │   ├── Container (Handle Bar)
+        │   ├── Row (Header: Notifications, Mark All Read)
+        │   ├── Divider
+        │   └── Expanded
+        │       └── FutureBuilder
+        │           └── ListView.builder (Dynamic Notification Items)
+        
+        
+        
+        
+        1. </rich_text>
+    <rich_text weight="heavy">Next Screen</rich_text>
+    <rich_text>: Which screen next? Options:• ProfileMoreScreen (uses ApiService.getProfile).
+• FriendSearchScreen (uses ApiService.searchUsers, ApiService.sendFriendRequest).
+• GameScreen (uses ApiService.createGame, ApiService.joinGame, WebSocket).
+• MainScreen (uses ApiService.getWalletBalance).
+
+
+• </rich_text>
+    <rich_text weight="heavy">Backend Status</rich_text>
+    <rich_text>: Confirm if GET /leaderboard is implemented or if we should keep useMockData = true.
+• </rich_text>
+    <rich_text weight="heavy">Additional Files</rich_text>
+    <rich_text>: Share friends_more_screen.dart, notifications_more_screen.dart, or more_screen.dart if ready.
+
+</rich_text>
+    <rich_text scale="h3">Step 9: Phase 2 Progress (May 28, 2025, 05:15 PM EAT)</rich_text>
+    <rich_text>
+◇ </rich_text>
+    <rich_text weight="heavy">Phase 2.2 (Authentication)</rich_text>
+    <rich_text>: Complete (ApiService.signup, login, googleSignIn).
+◇ </rich_text>
+    <rich_text weight="heavy">Phase 2.3 (Online Play)</rich_text>
+    <rich_text>: Complete (ApiService.createGame, joinGame, WebSocket).
+◇ </rich_text>
+    <rich_text weight="heavy">Phase 2.4 (Rankings)</rich_text>
+    <rich_text>: Complete (ScoreboardScreen with ApiService.getLeaderboard).
+◇ </rich_text>
+    <rich_text weight="heavy">Phase 2.5 (Friends)</rich_text>
+    <rich_text>: Pending (FriendSearchScreen implementation).
+◇ </rich_text>
+    <rich_text weight="heavy">Phase 2.6 (Profiles)</rich_text>
+    <rich_text>: Pending (ProfileMoreScreen implementation).
+◇ </rich_text>
+    <rich_text weight="heavy">Phase 2.1 (Payments)</rich_text>
+    <rich_text>: Partial (ApiService.getWalletBalance, depositFunds, withdrawFunds with mock data).
+
+</rich_text>
+  </node>
+</cherrytree>

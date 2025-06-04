@@ -1,4 +1,4 @@
-import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:chessearn_new/screens/more/profile_more_screen.dart';
 import 'package:chessearn_new/screens/wallet_screen.dart';
@@ -6,7 +6,8 @@ import 'package:chessearn_new/screens/more/messages_more_screen.dart';
 import 'package:chessearn_new/screens/more/statistics_more_screen.dart';
 import 'package:chessearn_new/screens/more/notifications_more_screen.dart';
 import 'package:chessearn_new/screens/more/settings_more_screen.dart';
-import 'package:chessearn_new/screens/more/friends_more_screen.dart'; // Added import
+import 'package:chessearn_new/screens/more/friends_more_screen.dart';
+import 'package:chessearn_new/screens/scoreboard_screen.dart'; // Added ScoreboardScreen import
 import 'package:chessearn_new/services/api_service.dart';
 import 'package:chessearn_new/screens/home_screen.dart';
 import 'package:chessearn_new/theme.dart';
@@ -27,11 +28,10 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _progressController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _progressAnimation;
   bool _isLoading = false;
-  double userProgress = 0.75;
-  int userLevel = 5;
-  int userXP = 3200;
+  double userProgress = 0.0;
+  int userLevel = 0;
+  int userXP = 0;
 
   @override
   void initState() {
@@ -47,11 +47,9 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
     );
-    _progressAnimation = Tween<double>(begin: 0.0, end: userProgress).animate(
-      CurvedAnimation(parent: _progressController, curve: Curves.easeOutCubic),
-    );
     _fadeController.forward();
     _progressController.forward();
+    _fetchUserStats();
   }
 
   @override
@@ -59,6 +57,20 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     _fadeController.dispose();
     _progressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchUserStats() async {
+    if (widget.userId == null) return;
+    try {
+      final stats = await ApiService.getUserStats(widget.userId);
+      setState(() {
+        userXP = stats['xp'] ?? 0;
+        userLevel = (stats['xp'] ~/ 1000); // Derive level from XP
+        userProgress = (stats['xp'] % 1000) / 1000; // Progress to next level
+      });
+    } catch (e) {
+      _showErrorSnackBar('Failed to load stats: $e');
+    }
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -79,7 +91,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   Future<void> _initMpesa() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
-    
+
     try {
       final phoneNumber = await _showPhoneNumberDialog();
       if (phoneNumber == null || phoneNumber.isEmpty) {
@@ -87,6 +99,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         return;
       }
 
+      // TODO: Replace with actual M-Pesa credentials
       const String consumerKey = 'your_consumer_key';
       const String consumerSecret = 'your_consumer_secret';
       const String shortCode = 'your_shortcode';
@@ -110,7 +123,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
           .toIso8601String()
           .replaceAll(RegExp(r'[^0-9]'), '')
           .substring(0, 14);
-      final password = json.base64Encode(utf8.encode('$shortCode$passkey$timestamp'));
+      final password = json.base64Encode(json.utf8.encode('$shortCode$passkey$timestamp'));
 
       final stkResponse = await http.post(
         Uri.parse('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'),
@@ -144,7 +157,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         throw Exception('M-Pesa STK Push failed');
       }
     } catch (e) {
-      _showErrorSnackBar('M-Pesa payment failed: ${e.toString()}');
+      _showErrorSnackBar('M-Pesa payment failed: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -153,8 +166,9 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   Future<void> _payWithCard() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
-    
+
     try {
+      // TODO: Replace with your actual backend URL
       final response = await http.post(
         Uri.parse('https://your-backend.com/create-payment-intent'),
         headers: {'Content-Type': 'application/json'},
@@ -194,14 +208,14 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       );
 
       await Stripe.instance.presentPaymentSheet();
-      
+
       _showSuccessSnackBar('Payment successful! Credits added to your account.');
     } on StripeException catch (e) {
       if (e.error.code != FailureCode.Canceled) {
         _showErrorSnackBar('Payment failed: ${e.error.message}');
       }
     } catch (e) {
-      _showErrorSnackBar('Payment failed: ${e.toString()}');
+      _showErrorSnackBar('Payment failed: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -212,14 +226,15 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     return showDialog<String>(
       context: context,
       builder: (BuildContext context) {
+        final theme = ChessEarnTheme.themeData;
         return AlertDialog(
-          backgroundColor: ChessEarnTheme.themeColors['surface-card'],
+          backgroundColor: ChessEarnTheme.getColor('surface-card'),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
-              Icon(Icons.phone, color: ChessEarnTheme.themeColors['brand-accent']),
+              Icon(Icons.phone, color: ChessEarnTheme.getColor('brand-accent')),
               const SizedBox(width: 8),
-              Text('Enter Phone Number', style: ChessEarnTheme.titleStyle),
+              Text('Enter Phone Number', style: theme.textTheme.titleLarge),
             ],
           ),
           content: TextField(
@@ -230,18 +245,22 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
               prefixText: '+',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: ChessEarnTheme.themeColors['border-soft']!),
+                borderSide: BorderSide(color: ChessEarnTheme.getColor('border-soft')),
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'])),
+              child: Text('Cancel', style: theme.textTheme.bodyMedium?.copyWith(color: ChessEarnTheme.getColor('text-muted'))),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(phoneNumber),
-              child: const Text('Proceed'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ChessEarnTheme.getColor('brand-accent'),
+                foregroundColor: ChessEarnTheme.getColor('text-light'),
+              ),
+              child: Text('Proceed', style: theme.textTheme.bodyMedium),
             ),
           ],
         );
@@ -254,22 +273,23 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
+        final theme = ChessEarnTheme.themeData;
         return Dialog(
           backgroundColor: Colors.transparent,
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: ChessEarnTheme.themeColors['surface-card'],
+              color: ChessEarnTheme.getColor('surface-card'),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 CircularProgressIndicator(
-                  color: ChessEarnTheme.themeColors['brand-accent'],
+                  color: ChessEarnTheme.getColor('brand-accent'),
                 ),
                 const SizedBox(height: 16),
-                Text('Processing...', style: ChessEarnTheme.bodyStyle),
+                Text('Processing...', style: theme.textTheme.bodyLarge),
               ],
             ),
           ),
@@ -283,12 +303,12 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.check_circle, color: ChessEarnTheme.themeColors['success']),
+            Icon(Icons.check_circle, color: ChessEarnTheme.getColor('success')),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: ChessEarnTheme.themeColors['success'],
+        backgroundColor: ChessEarnTheme.getColor('success'),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -300,12 +320,12 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error, color: ChessEarnTheme.themeColors['text-light']),
+            Icon(Icons.error, color: ChessEarnTheme.getColor('text-light')),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: ChessEarnTheme.themeColors['error'],
+        backgroundColor: ChessEarnTheme.getColor('error'),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -314,18 +334,10 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ChessEarnTheme.themeData;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              ChessEarnTheme.themeColors['brand-gradient-start']!,
-              ChessEarnTheme.themeColors['brand-gradient-end']!,
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        decoration: BoxDecoration(gradient: ChessEarnTheme.backgroundGradient),
         child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnimation,
@@ -340,7 +352,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: ChessEarnTheme.getColor('text-light').withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
@@ -352,7 +364,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                           ),
                           child: Icon(
                             Icons.more_horiz_rounded,
-                            color: ChessEarnTheme.themeColors['brand-accent'],
+                            color: ChessEarnTheme.getColor('brand-accent'),
                             size: 28,
                           ),
                         ),
@@ -363,16 +375,15 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                             children: [
                               Text(
                                 'More Options',
-                                style: TextStyle(
-                                  color: ChessEarnTheme.themeColors['text-light'],
+                                style: theme.textTheme.headlineLarge?.copyWith(
+                                  color: ChessEarnTheme.getColor('text-light'),
                                   fontSize: 28,
-                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
                                 'Explore More • ${_getTimeOfDayGreeting()}',
-                                style: TextStyle(
-                                  color: ChessEarnTheme.themeColors['text-light']!.withOpacity(0.8),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: ChessEarnTheme.getColor('text-light').withOpacity(0.8),
                                   fontSize: 14,
                                 ),
                               ),
@@ -392,9 +403,9 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: ChessEarnTheme.getColor('text-light').withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        border: Border.all(color: ChessEarnTheme.getColor('text-light').withOpacity(0.2)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
@@ -409,8 +420,8 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                             children: [
                               CircleAvatar(
                                 radius: 24,
-                                backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
-                                child: Icon(Icons.person, color: Colors.white, size: 28),
+                                backgroundColor: ChessEarnTheme.getColor('brand-accent'),
+                                child: Icon(Icons.person, color: ChessEarnTheme.getColor('text-light'), size: 28),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -419,17 +430,15 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                                   children: [
                                     Text(
                                       'Welcome back!',
-                                      style: TextStyle(
-                                        color: ChessEarnTheme.themeColors['text-light'],
-                                        fontSize: 18,
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        color: ChessEarnTheme.getColor('text-light'),
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     Text(
                                       'User ID: ${widget.userId}',
-                                      style: TextStyle(
-                                        color: ChessEarnTheme.themeColors['text-muted'],
-                                        fontSize: 14,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: ChessEarnTheme.getColor('text-muted'),
                                       ),
                                     ),
                                   ],
@@ -438,7 +447,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          // Dynamic Stats (Surprise Feature)
+                          // Dynamic Stats
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
@@ -459,33 +468,32 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                     delegate: SliverChildListDelegate([
                       _buildMenuSection('Account', [
                         _buildMenuItem(Icons.person_rounded, 'Profile', 'View and edit your profile',
-                          onTap: widget.userId != null ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileMoreScreen(userId: widget.userId!))) : null),
+                            onTap: widget.userId != null
+                                ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileMoreScreen(userId: widget.userId!)))
+                                : null),
                         _buildMenuItem(Icons.account_balance_wallet_rounded, 'Wallet', 'Manage your earnings',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => WalletScreen(userId: widget.userId)))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => WalletScreen(userId: widget.userId)))),
                         _buildMenuItem(Icons.bar_chart_rounded, 'Statistics', 'View your game stats',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StatisticsMoreScreen()))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StatisticsMoreScreen()))),
                       ]),
-
                       _buildMenuSection('Social', [
                         _buildMenuItem(Icons.people_rounded, 'Friends', 'Connect with other players',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => FriendsMoreScreen(userId: widget.userId)))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => FriendsMoreScreen(userId: widget.userId)))),
+                        _buildMenuItem(Icons.leaderboard_rounded, 'Leaderboard', 'View top players', // Added Leaderboard item
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScoreboardScreen(userId: widget.userId)))),
                         _buildMenuItem(Icons.message_rounded, 'Messages', 'Chat with friends',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesMoreScreen()))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesMoreScreen()))),
                         _buildMenuItem(Icons.notifications_rounded, 'Notifications', 'View your notifications',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsMoreScreen()))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsMoreScreen(userId: '',)))),
                       ]),
-
                       _buildMenuSection('Payments', [
                         _buildPaymentTile(),
                       ]),
-
                       _buildMenuSection('App', [
                         _buildMenuItem(Icons.settings_rounded, 'Settings', 'App preferences',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsMoreScreen()))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsMoreScreen()))),
                       ]),
-
                       const SizedBox(height: 32),
-
                       // Logout Button
                       if (widget.userId != null)
                         Container(
@@ -495,12 +503,12 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                           child: ElevatedButton.icon(
                             onPressed: () => _showLogoutDialog(),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: ChessEarnTheme.themeColors['error'],
-                              foregroundColor: Colors.white,
+                              backgroundColor: ChessEarnTheme.getColor('error'),
+                              foregroundColor: ChessEarnTheme.getColor('text-light'),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
                             icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Logout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            label: Text('Logout', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
                           ),
                         ),
                     ]),
@@ -518,7 +526,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [Colors.amber, Colors.orange],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -535,7 +543,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.star, color: Colors.white, size: 16),
+          const Icon(Icons.star, color: Colors.white, size: 16),
           const SizedBox(width: 4),
           Text(
             'Level $userLevel',
@@ -551,6 +559,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMenuSection(String title, List<Widget> items) {
+    final theme = ChessEarnTheme.themeData;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -558,9 +567,8 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Text(
             title,
-            style: TextStyle(
-              color: ChessEarnTheme.themeColors['text-muted'],
-              fontSize: 16,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: ChessEarnTheme.getColor('text-muted'),
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
             ),
@@ -573,12 +581,13 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMenuItem(IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
+    final theme = ChessEarnTheme.themeData;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: ChessEarnTheme.getColor('text-light').withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: ChessEarnTheme.getColor('text-light').withOpacity(0.1)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -592,40 +601,41 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: ChessEarnTheme.themeColors['brand-accent']!.withOpacity(0.2),
+            color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: ChessEarnTheme.themeColors['brand-accent'], size: 24),
+          child: Icon(icon, color: ChessEarnTheme.getColor('brand-accent'), size: 24),
         ),
-        title: Text(title, style: TextStyle(color: ChessEarnTheme.themeColors['text-light'], fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle, style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'], fontSize: 12)),
-        trailing: Icon(Icons.arrow_forward_ios_rounded, color: ChessEarnTheme.themeColors['text-muted'], size: 16),
+        title: Text(title, style: theme.textTheme.bodyLarge?.copyWith(color: ChessEarnTheme.getColor('text-light'), fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(color: ChessEarnTheme.getColor('text-muted'))),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, color: ChessEarnTheme.getColor('text-muted'), size: 16),
         onTap: onTap,
       ),
     );
   }
 
   Widget _buildPaymentTile() {
+    final theme = ChessEarnTheme.themeData;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: ChessEarnTheme.getColor('text-light').withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: ChessEarnTheme.getColor('text-light').withOpacity(0.1)),
       ),
       child: ExpansionTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: ChessEarnTheme.themeColors['brand-accent']!.withOpacity(0.2),
+            color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(Icons.payment_rounded, color: ChessEarnTheme.themeColors['brand-accent'], size: 24),
+          child: Icon(Icons.payment_rounded, color: ChessEarnTheme.getColor('brand-accent'), size: 24),
         ),
-        title: Text('Payment Methods', style: TextStyle(color: ChessEarnTheme.themeColors['text-light'], fontWeight: FontWeight.w500)),
-        subtitle: Text('Add credits to your account', style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'], fontSize: 12)),
-        iconColor: ChessEarnTheme.themeColors['text-muted'],
-        collapsedIconColor: ChessEarnTheme.themeColors['text-muted'],
+        title: Text('Payment Methods', style: theme.textTheme.bodyLarge?.copyWith(color: ChessEarnTheme.getColor('text-light'), fontWeight: FontWeight.w500)),
+        subtitle: Text('Add credits to your account', style: theme.textTheme.bodySmall?.copyWith(color: ChessEarnTheme.getColor('text-muted'))),
+        iconColor: ChessEarnTheme.getColor('text-muted'),
+        collapsedIconColor: ChessEarnTheme.getColor('text-muted'),
         children: [
           _buildPaymentOption(Icons.credit_card_rounded, 'Credit/Debit Card', 'Secure payment via Stripe', _payWithCard),
           _buildPaymentOption(Icons.phone_android_rounded, 'M-Pesa', 'Pay with mobile money', _initMpesa),
@@ -635,22 +645,24 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPaymentOption(IconData icon, String title, String subtitle, VoidCallback onTap) {
+    final theme = ChessEarnTheme.themeData;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: Icon(icon, color: ChessEarnTheme.themeColors['brand-accent'], size: 20),
-        title: Text(title, style: TextStyle(color: ChessEarnTheme.themeColors['text-light'], fontSize: 14)),
-        subtitle: Text(subtitle, style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'], fontSize: 11)),
-        trailing: _isLoading 
-          ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: ChessEarnTheme.themeColors['brand-accent']))
-          : Icon(Icons.arrow_forward_ios_rounded, color: ChessEarnTheme.themeColors['text-muted'], size: 12),
+        leading: Icon(icon, color: ChessEarnTheme.getColor('brand-accent'), size: 20),
+        title: Text(title, style: theme.textTheme.bodyMedium?.copyWith(color: ChessEarnTheme.getColor('text-light'))),
+        subtitle: Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(color: ChessEarnTheme.getColor('text-muted'))),
+        trailing: _isLoading
+            ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: ChessEarnTheme.getColor('brand-accent')))
+            : Icon(Icons.arrow_forward_ios_rounded, color: ChessEarnTheme.getColor('text-muted'), size: 12),
         onTap: _isLoading ? null : onTap,
       ),
     );
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    final theme = ChessEarnTheme.themeData;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -665,17 +677,15 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
             const SizedBox(height: 4),
             Text(
               value,
-              style: TextStyle(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: color,
-                fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               title,
-              style: TextStyle(
-                color: ChessEarnTheme.themeColors['text-light']!.withOpacity(0.7),
-                fontSize: 11,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: ChessEarnTheme.getColor('text-light').withOpacity(0.7),
               ),
             ),
           ],
@@ -684,47 +694,40 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _showComingSoonSnackBar(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature coming soon!'),
-        backgroundColor: ChessEarnTheme.themeColors['info'],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
   void _showLogoutDialog() {
+    final theme = ChessEarnTheme.themeData;
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: ChessEarnTheme.themeColors['surface-card'],
+          backgroundColor: ChessEarnTheme.getColor('surface-card'),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
-              Icon(Icons.logout_rounded, color: ChessEarnTheme.themeColors['error']),
+              Icon(Icons.logout_rounded, color: ChessEarnTheme.getColor('error')),
               const SizedBox(width: 8),
-              Text('Logout', style: TextStyle(color: ChessEarnTheme.themeColors['text-light'])),
+              Text('Logout', style: theme.textTheme.titleLarge?.copyWith(color: ChessEarnTheme.getColor('text-light'))),
             ],
           ),
           content: Text(
             'Are you sure you want to logout?',
-            style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
+            style: theme.textTheme.bodyLarge?.copyWith(color: ChessEarnTheme.getColor('text-light')),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'])),
+              child: Text('Cancel', style: theme.textTheme.bodyMedium?.copyWith(color: ChessEarnTheme.getColor('text-muted'))),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 _logout(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: ChessEarnTheme.themeColors['error']),
-              child: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ChessEarnTheme.getColor('error'),
+                foregroundColor: ChessEarnTheme.getColor('text-light'),
+              ),
+              child: Text('Logout', style: theme.textTheme.bodyMedium),
             ),
           ],
         );

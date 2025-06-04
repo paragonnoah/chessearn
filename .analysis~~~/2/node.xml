@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="2" master_id="0" name="main_screen" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="132" is_bold="1" foreground="" ts_creation="1748437533" ts_lastsave="1748437572">
+    <rich_text>MainScreen
+├── Scaffold
+│   ├── body: Container (Gradient Background)
+│   │   └── SafeArea
+│   │       ├── Column
+│   │       │   ├── SlideTransition (Custom App Bar)
+│   │       │   │   └── Container
+│   │       │   │       ├── Row
+│   │       │   │       │   ├── Row (Logo &amp; Title)
+│   │       │   │       │   │   ├── Container (Chess Icon)
+│   │       │   │       │   │   └── Column (ChessEarn, Welcome Text)
+│   │       │   │       │   └── Row (Wallet &amp; Notifications)
+│   │       │   │       │       ├── GestureDetector (Wallet)
+│   │       │   │       │       │   └── Container (Balance or Loading)
+│   │       │   │       │       └── Stack (Notifications)
+│   │       │   │       │           ├── Container (IconButton)
+│   │       │   │       │           └── Positioned (Notification Count)
+│   │       │   ├── Container (Guest Warning Banner, conditional)
+│   │       │   │   └── Row (Icon, Text, Sign Up Button)
+│   │       │   └── Expanded
+│   │       │       └── _screens[_selectedIndex] (Home/Puzzle/Learn/Watch/More)
+│   │       │           └── CustomScrollView (Home Tab)
+│   │       │               ├── SliverToBoxAdapter
+│   │       │               │   └── Column
+│   │       │               │       ├── _buildQuickStatsRow
+│   │       │               │       │   └── Row (Rating, Wins, Streak Cards)
+│   │       │               │       ├── _buildFeaturedMatchSection
+│   │       │               │       │   └── Column (Title, Match Card)
+│   │       │               │       ├── _buildGameModesGrid
+│   │       │               │       │   └── Column (Title, GridView)
+│   │       │               │       ├── _buildDailyChallengeCard
+│   │       │               │       │   └── Container (Animated Icon, Text)
+│   │       │               │       ├── _buildFriendsSection
+│   │       │               │       │   └── Column (Title, ListView of Avatars)
+│   │       │               │       └── _buildAchievementBanner
+│   │       │               │           └── Row (Icon, Text)
+│   └── bottomNavigationBar: Container
+│       └── BottomNavigationBar (Home, Puzzles, Learn, Watch, More)
+└── showModalBottomSheet (Notifications)
+    └── Container
+        ├── Column
+        │   ├── Container (Handle Bar)
+        │   ├── Row (Header: Notifications, Mark All Read)
+        │   ├── Divider
+        │   └── Expanded
+        │       └── ListView (Notification Items)</rich_text>
+  </node>
+</cherrytree>

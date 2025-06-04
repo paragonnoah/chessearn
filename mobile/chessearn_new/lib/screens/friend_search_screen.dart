@@ -1,7 +1,8 @@
+
 import 'package:flutter/material.dart';
 import 'package:chessearn_new/services/api_service.dart';
 import 'package:chessearn_new/theme.dart';
-import 'package:chessearn_new/screens/game_screen.dart'; // Import GameScreen
+import 'package:chessearn_new/screens/game_screen.dart';
 
 class FriendSearchScreen extends StatefulWidget {
   final String? userId;
@@ -17,7 +18,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
   List<Map<String, dynamic>> searchResults = [];
   bool isLoading = false;
   String? errorMessage;
-  Map<String, String> friendRequestStatus = {}; // Track status of friend requests
+  Map<String, String> friendRequestStatus = {};
 
   @override
   void initState() {
@@ -79,15 +80,14 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
         friendRequestStatus[friendId] = 'Friend request sent!';
       });
 
-      // Navigate to GameScreen with the friend as the opponent
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => GameScreen(
             userId: widget.userId,
             initialPlayMode: 'online',
-            timeControl: '10|0', // Default time control, adjust as needed
-            opponentId: friendId, // Pass friendId as opponentId
+            timeControl: '10|0',
+            opponentId: friendId,
           ),
         ),
       );
@@ -103,82 +103,64 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              ChessEarnTheme.themeColors['brand-gradient-start']!,
-              ChessEarnTheme.themeColors['brand-gradient-end']!,
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+          gradient: ChessEarnTheme.backgroundGradient,
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(16.0),
-                color: ChessEarnTheme.themeColors['brand-dark'],
+                color: ChessEarnTheme.getColor('brand-dark'),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Search Friends',
-                      style: TextStyle(
-                        color: ChessEarnTheme.themeColors['text-light'],
+                      style: ChessEarnTheme.themeData.textTheme.headlineSmall?.copyWith(
+                        color: ChessEarnTheme.getColor('text-light'),
                         fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        shadows: const [
-                          Shadow(
-                            color: Colors.black45,
-                            offset: Offset(2, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: Icon(Icons.arrow_back, color: ChessEarnTheme.getColor('text-light')),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
               ),
-              // Search Bar
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search by username...',
-                    hintStyle: TextStyle(color: ChessEarnTheme.themeColors['text-muted']),
-                    prefixIcon: Icon(Icons.search, color: ChessEarnTheme.themeColors['brand-accent']),
+                    hintStyle: TextStyle(color: ChessEarnTheme.getColor('text-muted')),
+                    prefixIcon: Icon(Icons.search, color: ChessEarnTheme.getColor('brand-accent')),
                     filled: true,
-                    fillColor: ChessEarnTheme.themeColors['surface-dark']!.withOpacity(0.5),
+                    fillColor: ChessEarnTheme.getColor('surface-dark')?.withOpacity(0.5),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
+                  style: TextStyle(color: ChessEarnTheme.getColor('text-light')),
                 ),
               ),
-              // Search Results
               Expanded(
                 child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(child: CircularProgressIndicator(color: ChessEarnTheme.getColor('brand-accent')))
                     : errorMessage != null
                         ? Center(
                             child: Text(
                               errorMessage!,
-                              style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
+                              style: TextStyle(color: ChessEarnTheme.getColor('text-light')),
                             ),
                           )
                         : searchResults.isEmpty && _searchController.text.isNotEmpty
                             ? Center(
                                 child: Text(
                                   'No users found',
-                                  style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
+                                  style: TextStyle(color: ChessEarnTheme.getColor('text-light')),
                                 ),
                               )
                             : ListView.builder(
@@ -192,26 +174,28 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                                   final isButtonDisabled = status != 'Add Friend';
 
                                   return Card(
-                                    color: ChessEarnTheme.themeColors['surface-dark'],
+                                    color: ChessEarnTheme.getColor('surface-dark'),
                                     margin: const EdgeInsets.symmetric(vertical: 8.0),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    elevation: 2,
                                     child: ListTile(
                                       title: Text(
                                         username,
-                                        style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
+                                        style: TextStyle(color: ChessEarnTheme.getColor('text-light')),
                                       ),
                                       trailing: ElevatedButton(
                                         onPressed: isButtonDisabled
                                             ? null
                                             : () => _sendFriendRequest(userId),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
+                                          backgroundColor: ChessEarnTheme.getColor('brand-accent'),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                         ),
                                         child: Text(
                                           status,
-                                          style: const TextStyle(color: Colors.white),
+                                          style: TextStyle(color: ChessEarnTheme.getColor('text-light')),
                                         ),
                                       ),
                                     ),
