@@ -157,11 +157,11 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.amber.withOpacity(0.5)),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.star, color: Colors.amber, size: 16),
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 Text(
                   'Level 3',
                   style: TextStyle(
@@ -201,7 +201,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Text(
+              const Text(
                 '68%',
                 style: TextStyle(
                   color: Colors.green,

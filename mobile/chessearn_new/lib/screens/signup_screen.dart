@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'game_screen.dart';
+import 'package:chessearn_new/screens/main_screen.dart'; // Changed to MainScreen for consistency
 import 'login_screen.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
@@ -43,14 +43,14 @@ class _SignupScreenState extends State<SignupScreen> {
       });
       return;
     }
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text.trim())) {
       setState(() {
         errorMessage = 'Invalid email format';
         isLoading = false;
       });
       return;
     }
-    if (!RegExp(r'^\d+$').hasMatch(_phoneController.text)) {
+    if (!RegExp(r'^\d+$').hasMatch(_phoneController.text.trim())) {
       setState(() {
         errorMessage = 'Phone number must contain only digits';
         isLoading = false;
@@ -60,23 +60,29 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final response = await ApiService.register(
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        email: _emailController.text,
-        username: _usernameController.text,
-        phoneNumber: '$countryCode${_phoneController.text}',
-        password: _passwordController.text,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        email: _emailController.text.trim(),
+        username: _usernameController.text.trim(),
+        phoneNumber: '$countryCode${_phoneController.text.trim()}',
+        password: _passwordController.text.trim(),
       );
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200) { // Updated to 200 based on cURL example
         final responseBody = jsonDecode(response.body);
-        final userId = responseBody['id']?.toString() ?? '';
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => GameScreen(userId: userId.isNotEmpty ? userId : null, initialPlayMode: '',)),
-        );
+        if (responseBody['message'] == 'User created') {
+          // Navigate to MainScreen after successful signup, relying on token
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainScreen(userId: null)), // userId will be fetched from token
+          );
+        } else {
+          setState(() {
+            errorMessage = 'Unexpected response: ${response.body}';
+          });
+        }
       } else if (response.statusCode == 400) {
         setState(() {
-          errorMessage = 'Signup failed: ${response.statusCode} - ${response.body}';
+          errorMessage = 'Signup failed: ${jsonDecode(response.body)['message'] ?? response.body}';
         });
       } else {
         setState(() {
@@ -86,11 +92,6 @@ class _SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       setState(() {
         errorMessage = 'Network error: $e';
-        // Allow guest play on signup failure
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const GameScreen(userId: null, initialPlayMode: '',)),
-        );
       });
     } finally {
       setState(() => isLoading = false);
@@ -119,7 +120,7 @@ class _SignupScreenState extends State<SignupScreen> {
             final userId = responseBody['id']?.toString() ?? '';
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => GameScreen(userId: userId.isNotEmpty ? userId : null, initialPlayMode: '',)),
+              MaterialPageRoute(builder: (context) => MainScreen(userId: userId.isNotEmpty ? userId : null)),
             );
           } else {
             setState(() {
@@ -131,11 +132,6 @@ class _SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       setState(() {
         errorMessage = 'Google signup failed: $e';
-        // Allow guest play on signup failure
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const GameScreen(userId: null, initialPlayMode: '',)),
-        );
       });
     } finally {
       setState(() => isLoading = false);

@@ -374,9 +374,9 @@ class _WalletScreenState extends State<WalletScreen> with TickerProviderStateMix
                         Expanded(
                           child: ListView(
                             children: [
-                              _buildTransactionItem('Deposit', '+20.00', DateTime.now().subtract(Duration(days: 1)), true),
-                              _buildTransactionItem('Game Win', '+5.00', DateTime.now().subtract(Duration(days: 2)), true),
-                              _buildTransactionItem('Withdrawal', '-10.00', DateTime.now().subtract(Duration(days: 3)), false),
+                              _buildTransactionItem('Deposit', '+20.00', DateTime.now().subtract(const Duration(days: 1)), true),
+                              _buildTransactionItem('Game Win', '+5.00', DateTime.now().subtract(const Duration(days: 2)), true),
+                              _buildTransactionItem('Withdrawal', '-10.00', DateTime.now().subtract(const Duration(days: 3)), false),
                             ],
                           ),
                         ),

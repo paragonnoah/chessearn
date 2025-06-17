@@ -13,6 +13,8 @@ import 'package:chessearn_new/screens/more/notifications_more_screen.dart';
 import 'package:chessearn_new/services/api_service.dart';
 import 'package:chessearn_new/theme.dart';
 import 'time_control_screen.dart';
+import 'package:chessearn_new/screens/open_game_screen.dart';
+import 'package:chessearn_new/screens/join_game_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final String? userId;
@@ -32,7 +34,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   bool _isLoadingFriends = true;
   bool _isLoadingBalance = true;
   bool _hasNotifications = false; // Dynamic notification state
-  List<Map<String, dynamic>> _notifications = [];
 
   @override
   void initState() {
@@ -116,13 +117,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     try {
       final notifications = await ApiService.getNotifications(widget.userId);
       setState(() {
-        _notifications = notifications;
         _hasNotifications = notifications.any((n) => !(n['isRead'] ?? true));
       });
     } catch (e) {
       print('Failed to fetch notifications: $e');
       setState(() {
-        _notifications = [];
         _hasNotifications = false;
       });
     }
@@ -212,7 +211,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => FriendSearchScreen(userId: widget.userId)),
+                    MaterialPageRoute(
+                      builder: (context) => FriendSearchScreen(userId: widget.userId),
+                    ),
                   );
                 },
               ),
@@ -225,13 +226,17 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => GameScreen(userId: widget.userId, initialPlayMode: 'online'),
+                      builder: (context) => GameScreen(
+                        userId: widget.userId,
+                        initialPlayMode: 'online',
+                        gameId: 'quick_match_id', // Placeholder gameId
+                      ),
                     ),
                   );
                 },
               ),
               _buildQuickActionTile(
-                icon: Icons.emoji_events, // Replaced Icons.tournament
+                icon: Icons.emoji_events,
                 title: 'Join Tournament',
                 subtitle: 'Compete with others',
                 onTap: () {
@@ -259,7 +264,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: ChessEarnTheme.getColor('brand-accent')?.withOpacity(0.1),
+            color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: ChessEarnTheme.getColor('brand-accent'), size: 24),
@@ -307,8 +312,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            ChessEarnTheme.getColor('brand-dark')!,
-                            ChessEarnTheme.getColor('brand-accent')!.withOpacity(0.8),
+                            ChessEarnTheme.getColor('brand-dark'),
+                            ChessEarnTheme.getColor('brand-accent').withOpacity(0.8),
                           ],
                         ),
                       ),
@@ -337,7 +342,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                     Text(
                                       'Play • Learn • Earn',
                                       style: ChessEarnTheme.themeData.textTheme.bodyLarge?.copyWith(
-                                        color: ChessEarnTheme.getColor('text-light')?.withOpacity(0.8),
+                                        color: ChessEarnTheme.getColor('text-light').withOpacity(0.8),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -348,7 +353,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => NotificationsMoreScreen(userId: widget.userId), // Fixed
+                                        builder: (context) => NotificationsMoreScreen(userId: widget.userId),
                                       ),
                                     ).then((_) => _fetchNotifications()); // Refresh notifications
                                   },
@@ -407,7 +412,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.person_outline, color: Colors.orange, size: 16),
+                                      const Icon(Icons.person_outline, color: Colors.orange, size: 16),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Playing as Guest - Sign up to earn!',
@@ -468,7 +473,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                             Text(
                                               'Wallet Balance',
                                               style: ChessEarnTheme.themeData.textTheme.bodyMedium?.copyWith(
-                                                color: ChessEarnTheme.getColor('text-light')?.withOpacity(0.8),
+                                                color: ChessEarnTheme.getColor('text-light').withOpacity(0.8),
                                               ),
                                             ),
                                             _isLoadingBalance
@@ -614,10 +619,24 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       childAspectRatio: 1.2,
       children: [
         _buildActionCard(
+          'Open Game',
+          'Create a new game',
+          Icons.add_circle_outline,
+          ChessEarnTheme.getColor('brand-accent'),
+          () => Navigator.push(context, MaterialPageRoute(builder: (context) => OpenGamesScreen(userId: widget.userId))),
+        ),
+        _buildActionCard(
+          'Join Game',
+          'Join an existing game',
+          Icons.group_add,
+          Colors.purple,
+          () => Navigator.push(context, MaterialPageRoute(builder: (context) => JoinGameScreen(userId: widget.userId))),
+        ),
+        _buildActionCard(
           'Quick Play',
           'Start a game now',
           Icons.play_circle_filled,
-          ChessEarnTheme.getColor('brand-accent')!,
+          ChessEarnTheme.getColor('brand-accent'),
           () => Navigator.push(context, MaterialPageRoute(builder: (context) => TimeControlScreen(userId: widget.userId))),
         ),
         _buildActionCard(
@@ -747,7 +766,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                 color: Colors.red.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.circle, color: Colors.red, size: 12),
+              child: const Icon(Icons.circle, color: Colors.red, size: 12),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -774,7 +793,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: ChessEarnTheme.getColor('brand-accent')?.withOpacity(0.1),
+                color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -803,8 +822,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                ChessEarnTheme.getColor('brand-accent')!,
-                ChessEarnTheme.getColor('brand-accent')!.withOpacity(0.7),
+                ChessEarnTheme.getColor('brand-accent'),
+                ChessEarnTheme.getColor('brand-accent').withOpacity(0.7),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -812,7 +831,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: ChessEarnTheme.getColor('brand-accent')!.withOpacity(0.3),
+                color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -826,7 +845,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(Icons.extension, color: Colors.white, size: 32),
+                child: const Icon(Icons.extension, color: Colors.white, size: 32),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -850,7 +869,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   ],
                 ),
               ),
-              Icon(
+              const Icon(
                 Icons.arrow_forward,
                 color: Colors.white,
                 size: 24,
@@ -887,7 +906,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             color: ChessEarnTheme.getColor('surface-dark'),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: ChessEarnTheme.getColor('brand-accent')!.withOpacity(0.3),
+              color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.3),
               width: 1,
             ),
           ),
@@ -896,7 +915,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: ChessEarnTheme.getColor('brand-accent')?.withOpacity(0.1),
+                  color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -961,6 +980,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                             initialPlayMode: 'online',
                             timeControl: '10|0',
                             opponentId: friend['id'],
+                            gameId: 'friend_challenge_id_${friend['id']}', // Placeholder gameId
                           ),
                         ),
                       );
@@ -1015,7 +1035,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                   color: Colors.green,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: ChessEarnTheme.getColor('surface-dark')!,
+                                    color: ChessEarnTheme.getColor('surface-dark'),
                                     width: 2,
                                   ),
                                 ),
@@ -1136,7 +1156,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: ChessEarnTheme.getColor('brand-accent')!.withOpacity(0.3),
+              color: ChessEarnTheme.getColor('brand-accent').withOpacity(0.3),
               blurRadius: 15,
               offset: const Offset(0, 6),
             ),
@@ -1154,7 +1174,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
                 colors: [
-                  ChessEarnTheme.getColor('brand-accent')!,
+                  ChessEarnTheme.getColor('brand-accent'),
                   // ignore: deprecated_member_use
                   ChessEarnTheme.getColor('brand-accent').withOpacity(0.8),
                 ],

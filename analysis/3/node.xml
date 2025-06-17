@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <cherrytree>
-  <node unique_id="3" master_id="0" name="impliment" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="0" foreground="" ts_creation="1748443101" ts_lastsave="1748443108">
+  <node unique_id="3" master_id="0" name="impliment" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="0" foreground="" ts_creation="1748443101" ts_lastsave="1749494159">
     <rich_text>Step 4: Update ProfileMoreScreen
 
 Ensure ProfileMoreScreen uses ApiService.getProfile.
@@ -291,6 +291,16 @@ Step 10: Phase 2 Status (May 28, 2025, 05:10 PM EAT)
     Phase 2.4 (Rankings): Complete (ScoreboardScreen with getLeaderboard).
     Phase 2.5 (Friends): Complete (FriendSearchScreen with searchUsers, sendFriendRequest).
     Phase 2.6 (Profiles): Complete (ProfileMoreScreen with getProfile).
-    Phase 2.1 (Payments): Partial (getWalletBalance, depositFunds, withdrawFunds with mock data).</rich_text>
+    Phase 2.1 (Payments): Partial (getWalletBalance, depositFunds, withdrawFunds with mock data).
+    
+    
+    
+    
+    
+    volatility = 10 
+    over = 8,9
+    under = 0,1
+    
+    win == 2, 3,4,5,6,7</rich_text>
   </node>
 </cherrytree>

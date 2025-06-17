@@ -101,7 +101,7 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
         userXP += 25;
         currentAttempts = 3; // Reset attempts
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Puzzle Solved! +25 XP')),
+          const SnackBar(content: Text('Puzzle Solved! +25 XP')),
         );
       });
     } else if (currentAttempts > 1) {
@@ -217,7 +217,7 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [Colors.amber, Colors.orange],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -231,14 +231,14 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
           ),
         ],
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.star, color: Colors.white, size: 16),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Text(
             'Level 1',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.bold,

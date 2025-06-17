@@ -1,18 +1,18 @@
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const String baseUrl = 'https://v2.chessearn.com';
-  static String? _csrfToken;
   static String? _accessToken;
-  static bool useMockData = true;
+  static String? _refreshToken;
+  static const bool useMockData = true; // Moved to const for consistency
+  static const Duration _timeoutDuration = Duration(seconds: 30);
 
-  static Future<void> initializeCookieJar() async {
+  static Future<void> initializeTokenStorage() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('access_token');
-    _csrfToken = prefs.getString('csrf_access_token');
+    _refreshToken = prefs.getString('refresh_token');
   }
 
   static Future<http.Response> register({
@@ -24,7 +24,6 @@ class ApiService {
     required String password,
   }) async {
     try {
-      print('Attempting to register with URL: $baseUrl/auth/register');
       final response = await http.post(
         Uri.parse('$baseUrl/auth/register'),
         headers: {'Content-Type': 'application/json'},
@@ -36,190 +35,177 @@ class ApiService {
           'phone_number': phoneNumber,
           'password': password,
         }),
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Registration request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Registration request timed out. Please try again later.');
       });
-      print('Registration response: ${response.statusCode} - ${response.body}');
       if (response.headers['set-cookie'] != null) {
         final cookies = response.headers['set-cookie']!.split(',');
         final prefs = await SharedPreferences.getInstance();
         for (var cookie in cookies) {
           if (cookie.contains('access_token_cookie')) {
             _accessToken = cookie.split('=')[1].split(';')[0];
-            await prefs.setString('access_token', _accessToken!);
+            if (_accessToken != null) {
+              await prefs.setString('access_token', _accessToken!);
+            }
           }
           if (cookie.contains('csrf_access_token')) {
-            _csrfToken = cookie.split('=')[1].split(';')[0];
-            await prefs.setString('csrf_access_token', _csrfToken!);
+            final csrfToken = cookie.split('=')[1].split(';')[0];
+            if (csrfToken != null) {
+              await prefs.setString('csrf_access_token', csrfToken);
+            }
           }
         }
       }
       return response;
     } catch (e) {
-      print('Registration error: $e');
       throw Exception('Failed to register: $e');
     }
   }
 
-  static Future<Map<String, dynamic>> login({required String identifier, required String password, required dynamic prefs}) async {
+  static Future<Map<String, dynamic>> login({required String identifier, required String password}) async {
     try {
-      print('Attempting to login with URL: $baseUrl/auth/login');
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'identifier': identifier, 'password': password}),
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Login request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Login request timed out. Please try again later.');
       });
-      print('Login response: ${response.statusCode} - ${response.body}');
-      if (response.headers['set-cookie'] != null) {
-        final cookies = response.headers['set-cookie']!.split(',');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
         final prefs = await SharedPreferences.getInstance();
-        for (var cookie in cookies) {
-          if (cookie.contains('access_token_cookie')) {
-            _accessToken = cookie.split('=')[1].split(';')[0];
-            await prefs.setString('access_token', _accessToken!);
-          }
-          if (cookie.contains('csrf_access_token')) {
-            _csrfToken = cookie.split('=')[1].split(';')[0];
-            await prefs.setString('csrf_access_token', _csrfToken!);
-          }
-        }
+        _accessToken = data['access_token'];
+        _refreshToken = data['refresh_token'];
+        await prefs.setString('access_token', _accessToken!);
+        await prefs.setString('refresh_token', _refreshToken!);
+        await prefs.setString('userId', data['user']['id']);
+        return data;
+      } else {
+        throw Exception(jsonDecode(response.body)['message'] ?? 'Login failed');
       }
-      final responseBody = jsonDecode(response.body);
-      final userId = responseBody['id']?.toString() ?? '';
-      await prefs.setString('userId', userId);
-      return {'response': response, 'userId': userId};
     } catch (e) {
-      print('Login error: $e');
       throw Exception('Failed to login: $e');
+    }
+  }
+
+  static Future<String> refreshToken() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_refreshToken',
+        },
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Token refresh request timed out. Please try again later.');
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _accessToken = data['access_token'];
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access_token', _accessToken!);
+        return _accessToken!;
+      } else {
+        throw Exception(jsonDecode(response.body)['message'] ?? 'Token refresh failed');
+      }
+    } catch (e) {
+      throw Exception('Failed to refresh token: $e');
     }
   }
 
   static Future<void> logout() async {
     try {
-      print('Attempting to logout with URL: $baseUrl/auth/logout');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.post(
         Uri.parse('$baseUrl/auth/logout'),
         headers: {
-          'X-CSRF-TOKEN': _csrfToken ?? '',
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Logout request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Logout request timed out. Please try again later.');
       });
-      print('Logout response: ${response.statusCode} - ${response.body}');
       if (response.statusCode != 200) {
         throw Exception('Logout failed: ${response.statusCode} - ${response.body}');
       }
       _accessToken = null;
-      _csrfToken = null;
+      _refreshToken = null;
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('access_token');
-      await prefs.remove('csrf_access_token');
+      await prefs.remove('refresh_token');
       await prefs.remove('userId');
     } catch (e) {
-      print('Logout error: $e');
       throw Exception('Failed to logout: $e');
     }
   }
 
   static Future<http.Response> getProfile({required String userId}) async {
     try {
-      print('Attempting to get profile with URL: $baseUrl/profile');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/profile'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Profile request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Profile request timed out. Please try again later.');
       });
-      print('Profile response: ${response.statusCode} - ${response.body}');
       return response;
     } catch (e) {
-      print('Profile error: $e');
       throw Exception('Failed to get profile: $e');
     }
   }
 
   static Future<http.Response> uploadProfilePhoto({required String userId, required String filePath}) async {
     try {
-      print('Attempting to upload photo with URL: $baseUrl/profile/photo');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/profile/photo'));
       request.files.add(await http.MultipartFile.fromPath('photo', filePath));
-      request.headers['X-CSRF-TOKEN'] = _csrfToken ?? '';
-      if (cookieHeader.isNotEmpty) request.headers['Cookie'] = cookieHeader;
-      final response = await http.Response.fromStream(await request.send()).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Photo upload request timed out');
+      request.headers['Authorization'] = 'Bearer $_accessToken';
+      final response = await http.Response.fromStream(await request.send()).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Photo upload request timed out. Please try again later.');
       });
-      print('Photo upload response: ${response.statusCode} - ${response.body}');
       return response;
     } catch (e) {
-      print('Photo upload error: $e');
       throw Exception('Failed to upload photo: $e');
     }
   }
 
   static Future<void> postGameMove(String move) async {
     try {
-      print('Attempting to post game move with URL: $baseUrl/game/move');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.post(
         Uri.parse('$baseUrl/game/move'),
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': _csrfToken ?? '',
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
         body: jsonEncode({'move': move}),
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Game move request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Game move request timed out. Please try again later.');
       });
-      print('Game move response: ${response.statusCode} - ${response.body}');
       if (response.statusCode != 200) {
         throw Exception('Failed to post move: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Game move error: $e');
       throw Exception('Failed to post game move: $e');
     }
   }
 
   static Future<Map<String, dynamic>> getWalletBalance(String userId) async {
     try {
-      print('Attempting to get wallet balance with URL: $baseUrl/wallet');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/wallet'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Wallet balance request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Wallet balance request timed out. Please try again later.');
       });
-      print('Wallet balance response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'country': data['country'] ?? 'KE',
           'wallet_balance': data['balance']?.toDouble() ?? 0.0,
         };
-      } else {
-        throw Exception('Failed to fetch wallet balance: ${response.statusCode} - ${response.body}');
       }
+      throw Exception('Failed to fetch wallet balance: ${response.statusCode} - ${response.body}');
     } catch (e) {
-      print('Wallet balance error: $e');
       return {
         'country': 'KE',
         'wallet_balance': 1000.0,
@@ -229,117 +215,92 @@ class ApiService {
 
   static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     try {
-      print('Attempting to search users with URL: $baseUrl/users/search?query=$query');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/users/search?query=$query'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Search users request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Search users request timed out. Please try again later.');
       });
-      print('Search users response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else {
-          throw Exception('Unexpected response format: ${response.body}');
         }
-      } else {
-        throw Exception('Failed to search users: ${response.statusCode} - ${response.body}');
+        throw Exception('Unexpected response format: ${response.body}');
       }
+      throw Exception('Failed to search users: ${response.statusCode} - ${response.body}');
     } catch (e) {
-      print('Search users error: $e');
       throw Exception('Failed to search users: $e');
     }
   }
 
   static Future<void> sendFriendRequest(String userId, String friendId) async {
     try {
-      print('Attempting to send friend request with URL: $baseUrl/friends/request');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.post(
         Uri.parse('$baseUrl/friends/request'),
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': _csrfToken ?? '',
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
         body: jsonEncode({
           'userId': userId,
           'friendId': friendId,
         }),
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Friend request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Friend request timed out. Please try again later.');
       });
-      print('Friend request response: ${response.statusCode} - ${response.body}');
       if (response.statusCode != 200) {
         throw Exception('Failed to send friend request: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Friend request error: $e');
       throw Exception('Failed to send friend request: $e');
     }
   }
 
   static Future<void> depositFunds(String userId, double amount) async {
     try {
-      print('Attempting to deposit funds with URL: $baseUrl/wallet/deposit');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.post(
         Uri.parse('$baseUrl/wallet/deposit'),
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': _csrfToken ?? '',
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
         body: jsonEncode({
           'userId': userId,
           'amount': amount,
         }),
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Deposit request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Deposit request timed out. Please try again later.');
       });
-      print('Deposit response: ${response.statusCode} - ${response.body}');
       if (response.statusCode != 200) {
         throw Exception('Failed to deposit funds: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Deposit error: $e');
       throw Exception('Failed to deposit funds: $e');
     }
   }
 
   static Future<void> withdrawFunds(String userId, double amount) async {
     try {
-      print('Attempting to withdraw funds with URL: $baseUrl/wallet/withdraw');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.post(
         Uri.parse('$baseUrl/wallet/withdraw'),
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': _csrfToken ?? '',
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
         body: jsonEncode({
           'userId': userId,
           'amount': amount,
         }),
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Withdraw request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Withdraw request timed out. Please try again later.');
       });
-      print('Withdraw response: ${response.statusCode} - ${response.body}');
       if (response.statusCode != 200) {
         throw Exception('Failed to withdraw funds: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Withdraw error: $e');
       throw Exception('Failed to withdraw funds: $e');
     }
   }
@@ -367,24 +328,19 @@ class ApiService {
       ];
     }
     try {
-      print('Attempting to get lessons with URL: $baseUrl/lessons/$userId');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/lessons/$userId'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Lessons request timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Lessons request timed out. Please try again later.');
       });
-      print('Lessons response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as List<dynamic>;
       }
       throw Exception('Failed to fetch lessons: ${response.statusCode} - ${response.body}');
     } catch (e) {
-      print('Lessons error: $e');
       throw Exception('Failed to fetch lessons: $e');
     }
   }
@@ -394,26 +350,20 @@ class ApiService {
       return;
     }
     try {
-      print('Attempting to update lesson progress with URL: $baseUrl/users/$userId/lessons/$lessonId');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.post(
         Uri.parse('$baseUrl/users/$userId/lessons/$lessonId'),
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': _csrfToken!,
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
         body: jsonEncode({'completed': completed, 'progress': completed ? 1.0 : 0.0}),
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        print('Lesson progress update timed out');
+      ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Lesson progress update timed out. Please try again later.');
       });
-      print('Lesson progress response: ${response.statusCode} - ${response.body}');
       if (response.statusCode != 200) {
         throw Exception('Failed to update lesson progress: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Lesson progress update error: $e');
       throw Exception('Failed to update lesson progress: $e');
     }
   }
@@ -429,24 +379,19 @@ class ApiService {
       };
     }
     try {
-      print('Attempting to get user stats with URL: $baseUrl/users/$userId/stats');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$userId' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/users/$userId/stats'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-          print('User stats request timed out.');
-          throw Exception('User stats request timed out. Please try again later.');
-        });
-      print('User stats response: ${response.statusCode} - ${response.body}');
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('User stats request timed out. Please try again later.');
+      });
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
       throw Exception('Failed to load user stats: ${response.statusCode} - ${response.body}');
     } catch (e) {
-      print('User stats error: $e');
       throw Exception('Failed to load stats: $e');
     }
   }
@@ -464,29 +409,23 @@ class ApiService {
       });
     }
     try {
-      print('Attempting to get leaderboard with URL: $baseUrl/leaderboard?game_type=$gameType&limit=$limit');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/leaderboard?game_type=$gameType&limit=$limit'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-          print('Leaderboard request timed out');
-          throw Exception('Leaderboard request timed out. Please try again later.');
-        });
-      print('Leaderboard response: ${response.statusCode} - ${response.body}');
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Leaderboard request timed out. Please try again later.');
+      });
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else {
-          throw Exception('Unexpected response format: ${response.body}');
         }
+        throw Exception('Unexpected response format: ${response.body}');
       }
       throw Exception('Failed to fetch leaderboard: ${response.statusCode} - ${response.body}');
     } catch (e) {
-      print('Leaderboard error: $e');
       throw Exception('Failed to fetch leaderboard: $e');
     }
   }
@@ -494,7 +433,6 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getFriends(String? userId) async {
     if (useMockData || userId == null) {
       await Future.delayed(const Duration(seconds: 1));
-      print('Friends response: Mock data for user $userId');
       return [
         {
           'id': 'friend_1',
@@ -517,117 +455,194 @@ class ApiService {
       ];
     }
     try {
-      print('Attempting to get friends with URL: $baseUrl/friends');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/friends'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-          print('Friends request timed out');
-          throw Exception('Friends request timed out. Please try again later.');
-        });
-      print('Friends response: ${response.statusCode} - ${response.body}');
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Friends request timed out. Please try again later.');
+      });
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else {
-          throw Exception('Unexpected response format: ${response.body}');
         }
+        throw Exception('Unexpected response format: ${response.body}');
       }
       throw Exception('Failed to fetch friends: ${response.statusCode} - ${response.body}');
     } catch (e) {
-      print('Friends error: $e');
       throw Exception('Failed to fetch friends: $e');
     }
   }
 
-  // New getNotifications method
   static Future<List<Map<String, dynamic>>> getNotifications(String? userId) async {
     if (useMockData || userId == null) {
       await Future.delayed(const Duration(seconds: 1));
-      print('Notifications response: Mock data for user $userId');
       return [
         {
           'id': 'notif_1',
           'title': 'Game Win',
           'message': 'You won a game against Player123!',
-          'time': DateTime.now().subtract(Duration(hours: 1)).toIso8601String(),
+          'time': DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
           'isRead': false,
         },
         {
           'id': 'notif_2',
           'title': 'Achievement Unlocked',
           'message': 'You earned the "Puzzle Master" badge!',
-          'time': DateTime.now().subtract(Duration(days: 1)).toIso8601String(),
+          'time': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
           'isRead': false,
         },
         {
           'id': 'notif_3',
           'title': 'Friend Request',
           'message': 'Player456 sent you a friend request.',
-          'time': DateTime.now().subtract(Duration(days: 2)).toIso8601String(),
+          'time': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
           'isRead': false,
         },
       ];
     }
     try {
-      print('Attempting to get notifications with URL: $baseUrl/notifications');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.get(
         Uri.parse('$baseUrl/notifications'),
         headers: {
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-          print('Notifications request timed out');
-          throw Exception('Notifications request timed out. Please try again later.');
-        });
-      print('Notifications response: ${response.statusCode} - ${response.body}');
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Notifications request timed out. Please try again later.');
+      });
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else {
-          throw Exception('Unexpected response format: ${response.body}');
         }
+        throw Exception('Unexpected response format: ${response.body}');
       }
       throw Exception('Failed to fetch notifications: ${response.statusCode} - ${response.body}');
     } catch (e) {
-      print('Notifications error: $e');
       throw Exception('Failed to fetch notifications: $e');
     }
   }
 
-  // Mark notification as read
   static Future<void> markNotificationRead(String? userId, String notificationId) async {
     if (useMockData || userId == null) {
-      print('Marked notification $notificationId as read (mock)');
       return;
     }
     try {
-      print('Attempting to mark notification read with URL: $baseUrl/notifications/$notificationId/read');
-      final cookieHeader = _accessToken != null ? 'access_token_cookie=$_accessToken' : '';
       final response = await http.post(
         Uri.parse('$baseUrl/notifications/$notificationId/read'),
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': _csrfToken ?? '',
-          if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+          'Authorization': 'Bearer $_accessToken',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-          print('Mark notification read request timed out');
-          throw Exception('Mark notification read request timed out. Please try again later.');
-        });
-      print('Mark notification read response: ${response.statusCode} - ${response.body}');
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Mark notification read request timed out. Please try again later.');
+      });
       if (response.statusCode != 200) {
         throw Exception('Failed to mark notification read: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Mark notification read error: $e');
       throw Exception('Failed to mark notification read: $e');
+    }
+  }
+
+  static Future<String> createGame({
+    required bool isRated,
+    required int baseTime,
+    required int increment,
+    required double betAmount,
+  }) async {
+    if (useMockData) return 'mock_game_id'; // Mock for testing
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/game/create'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'is_rated': isRated,
+          'base_time': baseTime,
+          'increment': increment,
+          'bet_amount': betAmount,
+        }),
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Create game request timed out');
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['game_id']?.toString() ?? ''; // Assuming backend returns game_id
+      }
+      throw Exception('Failed to create game: ${response.statusCode} - ${response.body}');
+    } catch (e) {
+      throw Exception('Failed to create game: $e');
+    }
+  }
+
+  static Future<String> joinGame(String gameId) async {
+    if (useMockData) return gameId; // Mock return for testing
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/game/join/$gameId'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Join game request timed out');
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['game_id']?.toString() ?? gameId; // Return game_id if provided, otherwise use input
+      }
+      throw Exception('Failed to join game: ${response.statusCode} - ${response.body}');
+    } catch (e) {
+      throw Exception('Failed to join game: $e');
+    }
+  }
+
+  // Placeholder for fetching available games (to be implemented based on backend)
+  static Future<List<Map<String, dynamic>>> getAvailableGames() async {
+    if (useMockData) {
+      return [
+        {
+          'id': 'game1',
+          'white_player_id': 'user1',
+          'status': 'pending',
+          'bet_amount': 10.0,
+          'base_time': 300,
+          'increment': 0,
+        },
+        {
+          'id': 'game2',
+          'white_player_id': 'user2',
+          'status': 'pending',
+          'bet_amount': 20.0,
+          'base_time': 600,
+          'increment': 2,
+        },
+      ];
+    }
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/game/available'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+        },
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Get available games request timed out');
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data.cast<Map<String, dynamic>>();
+        }
+        throw Exception('Unexpected response format: ${response.body}');
+      }
+      throw Exception('Failed to fetch available games: ${response.statusCode} - ${response.body}');
+    } catch (e) {
+      throw Exception('Failed to fetch available games: $e');
     }
   }
 }

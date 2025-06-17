@@ -87,7 +87,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
             userId: widget.userId,
             initialPlayMode: 'online',
             timeControl: '10|0',
-            opponentId: friendId,
+            opponentId: friendId, gameId: '',
           ),
         ),
       );
@@ -137,7 +137,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                     hintStyle: TextStyle(color: ChessEarnTheme.getColor('text-muted')),
                     prefixIcon: Icon(Icons.search, color: ChessEarnTheme.getColor('brand-accent')),
                     filled: true,
-                    fillColor: ChessEarnTheme.getColor('surface-dark')?.withOpacity(0.5),
+                    fillColor: ChessEarnTheme.getColor('surface-dark').withOpacity(0.5),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,

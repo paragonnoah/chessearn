@@ -410,7 +410,7 @@ class _SettingsMoreScreenState extends State<SettingsMoreScreen> with TickerProv
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TutorialScreen(),
+        builder: (context) => const TutorialScreen(),
       ),
     );
   }

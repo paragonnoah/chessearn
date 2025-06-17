@@ -3,47 +3,51 @@ description: A global chess platform with 1v1 gameplay where players can earn re
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.17.0 <4.0.0"
+  sdk: '>=3.5.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_chess_board: ^1.0.1  # For the chess board UI in game_screen.dart
-  chess: ^0.7.0              # Chess logic for game_screen.dart
-  http: ^1.4.0              # For API calls in api_service.dart
-  shared_preferences: ^2.3.3 # For saving tokens in main.dart and api_service.dart
-  flutter_stripe: ^11.0.0    # For Stripe payments in main.dart
-  cookie_jar: ^4.0.8        # For HTTP cookie management (used in api_service.dart)
-  image_picker: ^1.0.0      # For profile picture uploads in api_service.dart
-  google_sign_in: ^6.2.2    # For Google authentication (future use in login_screen.dart)
-  country_code_picker: ^3.0.0 # For user profile or friend location (future use)
-  intl: ^0.20.2             # For internationalization (future use)
-  path_provider: ^2.0.15    # For file storage (future use)
-  permission_handler: ^12.0.0+1 # For runtime permissions (future use with image_picker)
-  dartchess: ^0.11.1         # Alternative chess library (future use)
-  cupertino_icons: ^1.0.2   # iOS-style icons (future use)
-  url_launcher: ^6.3.0
-  local_auth: ^2.2.0
-  file_picker: ^10.1.9
+  flutter_chess_board: ^1.0.1
+  chess: ^0.8.1
+  stockfish: ^1.7.0
+  http: ^1.2.2
+  shared_preferences: ^2.3.3
+  flutter_stripe: ^11.0.0
+  cookie_jar: ^4.0.8
+  image_picker: ^1.1.2
+  google_sign_in: ^6.3.0 # Fixed to suggested version
+  country_code_picker: ^3.0.0
+  intl: ^0.20.2
+  path_provider: ^2.1.4
+  permission_handler: ^11.1.0
+  dartchess: ^0.11.1
+  cupertino_icons: ^1.0.8
+  url_launcher: ^6.3.1
+  local_auth: ^2.3.0
+  file_picker: ^8.1.2
   shimmer: ^3.0.0
   confetti: ^0.8.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0     # For code linting and best practices
-  flutter_launcher_icons: ^0.13.0  # Added for generating app icons
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
+
+dependency_overrides:
+  chess: ^0.8.1 # Ensures compatibility with flutter_chess_board
 
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/images/king_with_hidden_dollar.png"  # Path to your app icon image
-  adaptive_icon_background: "#ffffff"  # Optional: Background color for Android adaptive icons
-  adaptive_icon_foreground: "assets/images/king_with_hidden_dollar.png"  # Optional: Foreground image for Android adaptive icons
+  image_path: "assets/images/king_with_hidden_dollar.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/king_with_hidden_dollar.png"
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/chess_board.png 
+    - assets/images/chess_board.png
     - assets/images/coach_avatar.png
-    - assets/images/king_with_hidden_dollar.png  # Added your app icon to assets
+    - assets/images/king_with_hidden_dollar.png

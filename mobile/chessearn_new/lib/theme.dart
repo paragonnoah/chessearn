@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 class ChessEarnTheme {
@@ -37,8 +36,8 @@ class ChessEarnTheme {
     'glass-overlay': Color(0xFFFFFFFF),
   };
 
-  // Helper method to get colors with null safety
-  static Color getColor(String key) => themeColors[key]!;
+  // Helper method to get colors with null safety fallback
+  static Color getColor(String key) => themeColors[key] ?? const Color(0xFF000000); // Fallback to black if key missing
 
   // Gradient Definitions
   static LinearGradient get primaryGradient => LinearGradient(
@@ -73,7 +72,7 @@ class ChessEarnTheme {
   // Shadow Definitions
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
-          color: getColor('shadow-dark').withOpacity(0.1),
+          color: getColor('shadow-dark').withValues(alpha: 0.1),
           blurRadius: 10,
           offset: const Offset(0, 4),
         ),
@@ -81,7 +80,7 @@ class ChessEarnTheme {
 
   static List<BoxShadow> get accentGlow => [
         BoxShadow(
-          color: getColor('glow-accent').withOpacity(0.3),
+          color: getColor('glow-accent').withValues(alpha: 0.3),
           blurRadius: 20,
           spreadRadius: 5,
         ),
@@ -89,7 +88,7 @@ class ChessEarnTheme {
 
   static List<BoxShadow> get buttonShadow => [
         BoxShadow(
-          color: getColor('brand-accent').withOpacity(0.3),
+          color: getColor('brand-accent').withValues(alpha: 0.3),
           blurRadius: 8,
           offset: const Offset(0, 4),
         ),
@@ -242,7 +241,7 @@ class ChessEarnTheme {
             overlayColor: WidgetStateProperty.resolveWith<Color?>(
               (Set<WidgetState> states) {
                 if (states.contains(WidgetState.hovered) || states.contains(WidgetState.pressed)) {
-                  return getColor('brand-accent').withOpacity(0.1);
+                  return getColor('btn-outline-hover').withValues(alpha: 0.1);
                 }
                 return null;
               },
@@ -258,9 +257,9 @@ class ChessEarnTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: getColor('surface-light').withOpacity(0.8),
+          fillColor: getColor('surface-light').withValues(alpha: 0.8),
           labelStyle: TextStyle(color: getColor('text-muted')),
-          hintStyle: TextStyle(color: getColor('text-muted').withOpacity(0.7)),
+          hintStyle: TextStyle(color: getColor('text-muted').withValues(alpha: 0.7)),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: getColor('border-soft')),
@@ -285,7 +284,7 @@ class ChessEarnTheme {
         cardTheme: CardThemeData(
           color: getColor('surface-card'),
           elevation: 4,
-          shadowColor: getColor('shadow-dark').withOpacity(0.1),
+          shadowColor: getColor('shadow-dark').withValues(alpha: 0.1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

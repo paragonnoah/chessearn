@@ -165,7 +165,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
           baseColor: ChessEarnTheme.getColor('surface-dark'),
           highlightColor: ChessEarnTheme.getColor('surface-card'),
           child: ListTile(
-            leading: CircleAvatar(backgroundColor: Colors.white),
+            leading: const CircleAvatar(backgroundColor: Colors.white),
             title: Container(height: 16, color: Colors.white),
             subtitle: Container(height: 12, color: Colors.white),
           ),

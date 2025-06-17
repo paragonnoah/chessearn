@@ -32,16 +32,20 @@ Future<Widget> _initializeApp({required String? userId}) async {
 
   // Defer API initialization to background
   Future.microtask(() async {
-    await ApiService.initializeCookieJar();
+    await ApiService.initializeTokenStorage(); // Updated from initializeCookieJar
   });
 
   // Return initial route immediately
-  return accessToken != null
-      ? GameScreen(
-          userId: userId ?? prefs.getString('userId') ?? '',
-          initialPlayMode: 'computer',
-        )
-      : const HomeScreen();
+  if (accessToken != null) {
+    // For authenticated users, navigate to GameScreen with a placeholder gameId
+    // Note: gameId should ideally be created later (e.g., in TimeControlScreen)
+    return GameScreen(
+      userId: userId ?? prefs.getString('userId') ?? '',
+      initialPlayMode: 'computer',
+      gameId: 'initial_game', // Placeholder; consider making gameId optional or fetching it
+    );
+  }
+  return const HomeScreen();
 }
 
 void main() {

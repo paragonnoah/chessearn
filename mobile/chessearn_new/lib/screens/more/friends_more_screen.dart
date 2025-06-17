@@ -114,7 +114,14 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
         friendRequestStatus[friendId] = 'Friend request sent!';
       });
 
-      // Navigate to GameScreen with the friend as the opponent
+      // Create a game and navigate to GameScreen
+      String gameId = await ApiService.createGame(
+        isRated: true, // Default to rated
+        baseTime: 10, // Default time control base
+        increment: 0, // Default increment
+        betAmount: 0.0, // Default bet amount
+      );
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -123,6 +130,7 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
             initialPlayMode: 'online',
             timeControl: '10|0',
             opponentId: friendId,
+            gameId: gameId, // Added required gameId
           ),
         ),
       );
@@ -130,6 +138,35 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
       setState(() {
         friendRequestStatus[friendId] = e.toString().replaceFirst('Exception: ', '');
       });
+    }
+  }
+
+  Future<void> _startGameWithFriend(String friendId) async {
+    try {
+      // Create a game with the friend as the opponent
+      String gameId = await ApiService.createGame(
+        isRated: true, // Default to rated
+        baseTime: 10, // Default time control base
+        increment: 0, // Default increment
+        betAmount: 0.0, // Default bet amount
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameScreen(
+            userId: widget.userId,
+            initialPlayMode: 'online',
+            timeControl: '10|0',
+            opponentId: friendId,
+            gameId: gameId, // Added required gameId
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to start game: $e')),
+      );
     }
   }
 
@@ -282,19 +319,7 @@ class _FriendsMoreScreenState extends State<FriendsMoreScreen> {
                                           ),
                                         ),
                                         trailing: ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => GameScreen(
-                                                  userId: widget.userId,
-                                                  initialPlayMode: 'online',
-                                                  timeControl: '10|0',
-                                                  opponentId: friendId,
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                          onPressed: () => _startGameWithFriend(friendId),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
                                             shape: RoundedRectangleBorder(

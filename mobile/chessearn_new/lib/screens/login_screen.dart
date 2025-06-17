@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'game_screen.dart';
+import 'package:chessearn_new/screens/main_screen.dart';
 import 'signup_screen.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
-import 'dart:convert' as json; // Manually re-typed to ensure correctness
+import 'dart:convert' as json;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,13 +21,28 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  String countryCode = '+1';
+  String countryCode = '+254';
   String errorMessage = '';
   bool isLoading = false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
+  @override
+  void initState() {
+    super.initState();
+    ApiService.initializeTokenStorage(); // Call the method to initialize tokens
+  }
+
   Future<void> _login() async {
+    // DEV BYPASS: Instantly login as paragonnoah if using username
+    if (loginMethod == 'username' && _usernameController.text.trim() == 'paragonnoah') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainScreen(userId: 'paragonnoah')),
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
       errorMessage = '';
@@ -37,27 +52,27 @@ class _LoginScreenState extends State<LoginScreen> {
       String identifier;
       switch (loginMethod) {
         case 'username':
-          identifier = _usernameController.text;
+          identifier = _usernameController.text.trim();
           break;
         case 'email':
-          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
+          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text.trim())) {
             setState(() {
               errorMessage = 'Invalid email format';
               isLoading = false;
             });
             return;
           }
-          identifier = _emailController.text;
+          identifier = _emailController.text.trim();
           break;
         case 'phone':
-          if (!RegExp(r'^\d+$').hasMatch(_phoneController.text)) {
+          if (!RegExp(r'^\d+$').hasMatch(_phoneController.text.trim())) {
             setState(() {
               errorMessage = 'Phone number must contain only digits';
               isLoading = false;
             });
             return;
           }
-          identifier = '$countryCode${_phoneController.text}';
+          identifier = '$countryCode${_phoneController.text.trim()}';
           break;
         default:
           setState(() {
@@ -67,30 +82,17 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
       }
 
-      final result = await ApiService.login(identifier: identifier, password: _passwordController.text, prefs: null);
-      final response = result['response'] as http.Response;
-      final userId = result['userId'] as String;
-
-      if (response.statusCode == 200) {
-        if (userId.isEmpty) {
-          setState(() {
-            errorMessage = 'Login successful, but user ID not found in response';
-            isLoading = false;
-          });
-          return;
-        }
+      final result = await ApiService.login(identifier: identifier, password: _passwordController.text.trim());
+      final userId = result['user']['id'] as String;
+      if (userId.isNotEmpty) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => GameScreen(userId: userId, initialPlayMode: '',)),
+          MaterialPageRoute(builder: (context) => MainScreen(userId: userId)),
         );
-      } else {
-        setState(() {
-          errorMessage = 'Login failed: ${response.statusCode} - ${response.body}';
-        });
       }
     } catch (e) {
       setState(() {
-        errorMessage = 'Network error: $e';
+        errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       setState(() => isLoading = false);
@@ -98,6 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _googleLogin() async {
+    // Note: Google login endpoint not provided, placeholder implementation
     setState(() {
       isLoading = true;
       errorMessage = '';
@@ -115,19 +118,14 @@ class _LoginScreenState extends State<LoginScreen> {
             body: json.jsonEncode({'id_token': idToken}),
           );
           if (response.statusCode == 200) {
-            final responseBody = json.jsonDecode(response.body);
-            final userId = responseBody['id']?.toString() ?? '';
-            if (userId.isEmpty) {
-              setState(() {
-                errorMessage = 'Google login successful, but user ID not found in response';
-                isLoading = false;
-              });
-              return;
+            final data = json.jsonDecode(response.body);
+            final userId = data['user']['id']?.toString() ?? '';
+            if (userId.isNotEmpty) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => MainScreen(userId: userId)),
+              );
             }
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => GameScreen(userId: userId, initialPlayMode: '',)),
-            );
           } else {
             setState(() {
               errorMessage = 'Google login failed: ${response.statusCode} - ${response.body}';
@@ -209,8 +207,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: MediaQuery.of(context).size.width * 0.3,
                         child: CountryCodePicker(
                           onChanged: (code) => setState(() => countryCode = code.dialCode!),
-                          initialSelection: 'US',
-                          favorite: const ['+1'],
+                          initialSelection: 'KE',
+                          favorite: const ['+254'],
                           showCountryOnly: false,
                           showOnlyCountryWhenClosed: false,
                           alignLeft: false,
@@ -227,6 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                           ),
                           style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
+                          keyboardType: TextInputType.phone,
                         ),
                       ),
                     ],

@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="3" master_id="0" name="impliment" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="0" foreground="" ts_creation="1748443101" ts_lastsave="1749494105">
+    <rich_text>Step 4: Update ProfileMoreScreen
+
+Ensure ProfileMoreScreen uses ApiService.getProfile.
+dart
+// In profile_more_screen.dart
+Map&lt;String, dynamic&gt; _userData = {};
+
+Future&lt;void&gt; _fetchProfile() async {
+  try {
+    final data = await ApiService.getProfile(widget.userId);
+    setState(() {
+      _userData = data;
+    });
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to load profile: $e')),
+    );
+  }
+}
+
+@override
+void initState() {
+  super.initState();
+  print('ProfileMoreScreen received userId: ${widget.userId}');
+  _fadeController = AnimationController(
+    duration: const Duration(milliseconds: 800),
+    vsync: this,
+  );
+  _slideController = AnimationController(
+    duration: const Duration(milliseconds: 1000),
+    vsync: this,
+  );
+  _fadeAnimation = Tween&lt;double&gt;(begin: 0.0, end: 1.0).animate(
+    CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
+  );
+  _slideAnimation = Tween&lt;Offset&gt;(
+    begin: const Offset(0, 0.3),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack));
+  _fadeController.forward();
+  _slideController.forward();
+  _fetchProfile();
+}
+
+void _editProfile() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) =&gt; Scaffold(
+        appBar: AppBar(title: const Text('Edit Profile')),
+        body: const Center(child: Text('Edit Profile Screen (Coming Soon)')),
+      ),
+    ),
+  );
+}
+
+Changes:
+
+    Replaced static _userData with dynamic fetch via ApiService.getProfile.
+    Uses mock data if useMockData = true.
+
+Step 5: Update FriendSearchScreen
+
+Ensure FriendSearchScreen uses ApiService.searchUsers and ApiService.sendFriendRequest.
+dart
+// In friend_search_screen.dart
+Future&lt;void&gt; _searchUsers() async {
+  setState(() {
+    isLoading = true;
+    errorMessage = null;
+  });
+  try {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+    final response = await ApiService.searchUsers(query);
+    setState(() {
+      searchResults = response;
+      isLoading = false;
+    });
+  } catch (e) {
+    setState(() {
+      errorMessage = e.toString().replaceFirst('Exception: ', '');
+      searchResults = [];
+      isLoading = false;
+    });
+  }
+}
+
+Future&lt;void&gt; _sendFriendRequest(String friendId) async {
+  if (widget.userId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please log in to add friends')),
+    );
+    return;
+  }
+  setState(() {
+    friendRequestStatus[friendId] = 'Sending...';
+  });
+  try {
+    await ApiService.sendFriendRequest(widget.userId!, friendId);
+    final game = await ApiService.createGame(
+      isRated: false,
+      opponentId: friendId,
+      baseTime: 600,
+      increment: 0,
+    );
+    setState(() {
+      friendRequestStatus[friendId] = 'Friend request sent!';
+    });
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =&gt; GameScreen(
+          userId: widget.userId,
+          initialPlayMode: 'online',
+          timeControl: '10|0',
+          opponentId: friendId,
+          gameId: game['game']['id'],
+        ),
+      ),
+    );
+  } catch (e) {
+    setState(() {
+      friendRequestStatus[friendId] = e.toString().replaceFirst('Exception: ', '');
+    });
+  }
+}
+
+Changes:
+
+    Uses ApiService.searchUsers and ApiService.sendFriendRequest.
+    Creates game with ApiService.createGame for friend matches.
+    Mock data for searchUsers and sendFriendRequest if useMockData = true.
+
+Step 6: Update GameScreen
+
+Ensure GameScreen uses WebSocket and game-related APIs.
+dart
+// In game_screen.dart
+class _GameScreenState extends State&lt;GameScreen&gt; {
+  // ... (other fields)
+  bool _isWebSocketConnected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    playMode = widget.initialPlayMode;
+    playAgainstComputer = playMode == 'computer';
+    _initializeTimers();
+    _checkGameState();
+    lastFenBeforeMove = controller.game.fen;
+    _startTimer();
+    if (playMode == 'online' &amp;&amp; widget.opponentId != null &amp;&amp; widget.gameId != null) {
+      _startOnlineGameWithOpponent();
+      _initializeWebSocket();
+    } else if (playMode == 'online') {
+      setState(() =&gt; gameStatus = 'Error: Missing game ID or opponent ID');
+    }
+  }
+
+  void _initializeWebSocket() {
+    if (widget.gameId == null || _accessToken == null) return;
+    ApiService.initializeWebSocket(
+      _accessToken!,
+      (data) {
+        setState(() {
+          controller.loadFen(data['fen']);
+          moveHistory.insert(0, data['move_san'] ?? 'Unknown move');
+          messages.add({'sender': 'Opponent', 'text': data['move_san'] ?? 'Moved'});
+          isUserTurn = data['white_player_id'] == widget.userId ? !controller.game.turn : controller.game.turn;
+          _checkGameState();
+        });
+      },
+      (data) {
+        setState(() {
+          gameStatus = data['outcome'] == 'draw' ? 'Game drawn!' : '${data['outcome'] == 'white_win' ? 'White' : 'Black'} wins!';
+          isGameOver = true;
+          earnedPoints += 50;
+          messages.add({'sender': 'System', 'text': gameStatus});
+          _syncPoints();
+        });
+      },
+      (data) {
+        setState(() {
+          drawOffered = true;
+          messages.add({'sender': 'Opponent', 'text': 'Draw offered.'});
+        });
+      },
+      (data) {
+        setState(() {
+          drawOffered = false;
+          messages.add({'sender': 'Opponent', 'text': 'Draw declined.'});
+        });
+      },
+      (data) =&gt; _showErrorSnackBar('WebSocket error: ${data['message']}'),
+    );
+    _isWebSocketConnected = true;
+  }
+
+  @override
+  void dispose() {
+    if (_isWebSocketConnected) {
+      ApiService.disconnectWebSocket();
+    }
+    super.dispose();
+  }
+
+  // ... (rest of GameScreen code unchanged)
+}
+
+Changes:
+
+    Uses ApiService.initializeWebSocket for Socket.IO.
+    Manages WebSocket connection with _isWebSocketConnected.
+    Handles game_update, game_end, draw_offered, draw_declined, error.
+
+Step 7: Update MainScreen
+
+Ensure MainScreen uses ApiService.getWalletBalance.
+dart
+// In main_screen.dart
+Future&lt;void&gt; _fetchWalletBalance() async {
+  try {
+    final data = await ApiService.getWalletBalance(widget.userId!);
+    setState(() {
+      _walletBalance = data['wallet_balance'];
+      _country = data['country'];
+    });
+  } catch (e) {
+    setState(() {
+      _walletBalance = 1000.0;
+      _country = 'KE';
+    });
+  }
+}
+
+Changes: Uses ApiService.getWalletBalance with mock data fallback.
+Step 8: Testing Plan
+
+    Mock Data:
+        Set ApiService.useMockData = true.
+        Test:
+            Authentication: signup, login, googleSignIn.
+            Profile: getProfile in ProfileMoreScreen.
+            Friends: searchUsers, sendFriendRequest in FriendSearchScreen.
+            Leaderboard: getLeaderboard in ScoreboardScreen.
+            Wallet: getWalletBalance, depositFunds, withdrawFunds in MainScreen.
+            Game: createGame, joinGame, getGameHistory, getGameDetails, WebSocket in GameScreen.
+    Backend:
+        Set ApiService.useMockData = false.
+        Test with valid JWT token:
+            curl -X POST https://api.chessearn.com/game/create ...
+            curl -X POST https://api.chessearn.com/game/join/&lt;game_id&gt; ...
+            curl -X GET https://api.chessearn.com/game/history ...
+            curl -X GET https://api.chessearn.com/game/&lt;game_id&gt; ...
+            WebSocket events in GameScreen.
+        Test unimplemented endpoints (getProfile, etc.) when backend is ready.
+    Rate Limits:
+        Handle 429 errors with retry logic in createGame, joinGame.
+        Respect 5/minute for createGame, joinGame; 10/minute for getGameHistory, getGameDetails.
+    CORS:
+        Ensure backend allows http://localhost:8080 (Flutter emulator).
+
+Step 9: Error Handling
+
+To address “many errors”:
+
+    WebSocket: Uses socket_io_client with reconnect logic.
+    Null Safety: Checks for gameId, opponentId, _accessToken.
+    Rate Limits: Retry logic for 429 errors.
+    Timeouts: 30-second timeouts for all HTTP requests.
+    Mock Data: Ensures functionality without backend.
+
+Example Error Handling:
+dart
+// In any screen
+try {
+  final data = await ApiService.getLeaderboard();
+} catch (e) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Error: $e')),
+  );
+}
+Step 10: Phase 2 Status (May 28, 2025, 05:10 PM EAT)
+
+    Phase 2.2 (Authentication): Complete (signup, login, googleSignIn).
+    Phase 2.3 (Online Play): Complete (createGame, joinGame, WebSocket).
+    Phase 2.4 (Rankings): Complete (ScoreboardScreen with getLeaderboard).
+    Phase 2.5 (Friends): Complete (FriendSearchScreen with searchUsers, sendFriendRequest).
+    Phase 2.6 (Profiles): Complete (ProfileMoreScreen with getProfile).
+    Phase 2.1 (Payments): Partial (getWalletBalance, depositFunds, withdrawFunds with mock data).
+    
+    
+    
+    
+    
+    volatility = 10 
+    over = 8,9
+    under = 0,1
+    
+    win == 2, 3,4,5,6,7,</rich_text>
+  </node>
+</cherrytree>
