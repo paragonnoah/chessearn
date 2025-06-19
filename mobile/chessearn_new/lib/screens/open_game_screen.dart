@@ -140,8 +140,8 @@ class _OpenGamesScreenState extends State<OpenGamesScreen> with TickerProviderSt
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      ChessEarnTheme.getColor('brand-dark')!,
-                      ChessEarnTheme.getColor('brand-accent')!.withOpacity(0.3),
+                      ChessEarnTheme.getColor('brand-dark'),
+                      ChessEarnTheme.getColor('brand-accent').withOpacity(0.3),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,

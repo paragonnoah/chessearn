@@ -3,6 +3,7 @@ import 'package:flutter_chess_board/flutter_chess_board.dart';
 import 'package:chessearn_new/screens/game_board.dart';
 import 'package:chessearn_new/screens/home_screen.dart';
 import 'package:chessearn_new/screens/profile_screen.dart';
+import 'package:chessearn_new/screens/chess_chat_screen.dart';
 import 'package:chessearn_new/services/api_service.dart';
 import 'package:chessearn_new/theme.dart';
 import 'dart:async';
@@ -12,14 +13,15 @@ class GameScreen extends StatefulWidget {
   final String? userId;
   final String initialPlayMode;
   final String? timeControl;
-  final String? opponentId; // Added to accept the friend's userId
+  final String? opponentId;
 
   const GameScreen({
     super.key,
     required this.userId,
     required this.initialPlayMode,
     this.timeControl,
-    this.opponentId, required String gameId,
+    this.opponentId,
+    required String gameId,
   });
 
   @override
@@ -28,8 +30,8 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   String gameStatus = 'White to move';
-  List<String> moveHistory = []; // Track SAN moves manually
-  List<Map<String, String>> pairedMoves = []; // For displaying moves like "1. e4 e5"
+  List<String> moveHistory = [];
+  List<Map<String, String>> pairedMoves = [];
   bool showLegalMoves = true;
   String? selectedSquare;
   List<String> legalDestinations = [];
@@ -40,21 +42,14 @@ class _GameScreenState extends State<GameScreen> {
   int earnedPoints = 0;
   bool drawOffered = false;
   bool drawAccepted = false;
-  String? lastFenBeforeMove; // Track the FEN before the last move
+  String? lastFenBeforeMove;
 
-  // Timer variables
   late int whiteTime;
   late int blackTime;
   int whiteIncrement = 0;
   int blackIncrement = 0;
   Timer? _timer;
   bool isGameOver = false;
-
-  // Messages section
-  List<Map<String, String>> messages = [
-    {'sender': 'You', 'text': 'Good luck!'},
-    {'sender': 'Opponent', 'text': 'Thanks, you too!'},
-  ];
 
   @override
   void initState() {
@@ -73,11 +68,6 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _startOnlineGameWithOpponent() async {
     try {
       await ApiService.postGameMove('start_game:${widget.opponentId}');
-      if (mounted) {
-        setState(() {
-          messages.add({'sender': 'System', 'text': 'Game started with opponent!'});
-        });
-      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -146,9 +136,9 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _checkGameState() {
-    if (!mounted) return; // Safety check
+    if (!mounted) return;
     setState(() {
-      gameStatus = 'White to move'; // Default, updated by onGameStateChange
+      gameStatus = 'White to move';
       pairedMoves = [];
       for (int i = 0; i < moveHistory.length; i += 2) {
         final moveNumber = (i ~/ 2) + 1;
@@ -201,10 +191,6 @@ class _GameScreenState extends State<GameScreen> {
       isGameOver = false;
       drawOffered = false;
       drawAccepted = false;
-      messages = [
-        {'sender': 'You', 'text': 'Good luck!'},
-        {'sender': 'Opponent', 'text': 'Thanks, you too!'},
-      ];
       lastFenBeforeMove = null;
       _initializeTimers();
       if (playMode == 'computer' && !isUserTurn) _makeComputerMove();
@@ -220,7 +206,7 @@ class _GameScreenState extends State<GameScreen> {
     if (!mounted || moveHistory.isEmpty) return;
     setState(() {
       moveHistory.removeLast();
-      if (moveHistory.isNotEmpty) moveHistory.removeLast(); // Remove pair
+      if (moveHistory.isNotEmpty) moveHistory.removeLast();
       pairedMoves.clear();
       for (int i = 0; i < moveHistory.length; i += 2) {
         final moveNumber = (i ~/ 2) + 1;
@@ -254,13 +240,12 @@ class _GameScreenState extends State<GameScreen> {
   void _makeComputerMove() {
     if (!mounted || !isUserTurn || !playAgainstComputer) return;
     // Placeholder; rely on GameBoard's computer move logic
-    const move = 'e7e5'; // Example move
+    const move = 'e7e5';
     final from = move.substring(0, 2);
     final to = move.substring(2, 4);
     setState(() {
       moveHistory.insert(0, '$from$to');
       _checkGameState();
-      messages.add({'sender': 'Opponent', 'text': 'Nice move!'});
       isUserTurn = true;
     });
   }
@@ -278,7 +263,6 @@ class _GameScreenState extends State<GameScreen> {
     if (!mounted || isGameOver) return;
     setState(() {
       drawOffered = true;
-      messages.add({'sender': 'You', 'text': 'I offer a draw.'});
     });
 
     if (playAgainstComputer) {
@@ -291,9 +275,7 @@ class _GameScreenState extends State<GameScreen> {
               drawAccepted = true;
               gameStatus = 'Draw accepted!';
               isGameOver = true;
-              messages.add({'sender': 'Opponent', 'text': 'Draw accepted!'});
             } else {
-              messages.add({'sender': 'Opponent', 'text': 'Draw declined.'});
               drawOffered = false;
             }
           });
@@ -307,8 +289,6 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {
       gameStatus = 'You resigned! Opponent wins!';
       isGameOver = true;
-      messages.add({'sender': 'You', 'text': 'I resign.'});
-      messages.add({'sender': 'Opponent', 'text': 'Good game!'});
     });
   }
 
@@ -338,16 +318,30 @@ class _GameScreenState extends State<GameScreen> {
     if (!mounted) return;
     try {
       await ApiService.postGameMove('$move:${widget.opponentId}');
-      setState(() {
-        messages.add({'sender': 'System', 'text': 'Move synced with opponent!'});
-      });
-      isUserTurn = false; // Wait for opponent's move
+      isUserTurn = false;
     } catch (e) {
       setState(() {
         gameStatus = 'Failed to sync move: $e';
       });
-      isUserTurn = true; // Allow retry
+      isUserTurn = true;
     }
+  }
+
+  String _getCurrentFen() {
+    return 'rnbqkbnr/pppp1ppp/5n2/5p2/5P2/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2';
+  }
+
+  // --- CHAT NAVIGATION ---
+  void _openChatBox() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChessChatScreen(
+          currentUserName: widget.userId ?? "You",
+          opponentName: widget.opponentId ?? "Opponent",
+        ),
+      ),
+    );
   }
 
   @override
@@ -391,9 +385,15 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                   Row(
                     children: [
+                      IconButton(
+                        icon: const Icon(Icons.forum, color: Colors.white),
+                        tooltip: "Open Chat",
+                        onPressed: _openChatBox,
+                      ),
                       TextButton(
                         onPressed: () {
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
+                          Navigator.pushReplacement(
+                              context, MaterialPageRoute(builder: (context) => const HomeScreen()));
                         },
                         child: Text('Home', style: TextStyle(color: ChessEarnTheme.themeColors['brand-accent'])),
                       ),
@@ -538,7 +538,7 @@ class _GameScreenState extends State<GameScreen> {
                             decoration: BoxDecoration(
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
+                                  color: Colors.black.withAlpha(50),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -558,7 +558,6 @@ class _GameScreenState extends State<GameScreen> {
                                 setState(() {
                                   moveHistory.insert(0, sanMove);
                                   _checkGameState();
-                                  messages.add({'sender': 'You', 'text': 'Your move!'});
                                   if (playAgainstComputer && !isGameOver && !isUserTurn) {
                                     isUserTurn = false;
                                     Future.delayed(const Duration(milliseconds: 500), _makeComputerMove);
@@ -660,7 +659,7 @@ class _GameScreenState extends State<GameScreen> {
                                 ),
                                 const SizedBox(height: 10),
                                 Container(
-                                  height: 150,
+                                  height: 120,
                                   padding: const EdgeInsets.all(8.0),
                                   decoration: BoxDecoration(
                                     color: ChessEarnTheme.themeColors['surface-dark'],
@@ -721,68 +720,20 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          // Messages Section
+                          // Chat Button
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                Text(
-                                  'Messages',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: ChessEarnTheme.themeColors['text-light'],
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Container(
-                                  height: 150,
-                                  padding: const EdgeInsets.all(8.0),
-                                  decoration: BoxDecoration(
-                                    color: ChessEarnTheme.themeColors['surface-dark']!.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black26,
-                                        offset: Offset(0, 2),
-                                        blurRadius: 4,
-                                      ),
-                                    ],
-                                  ),
-                                  child: ListView.builder(
-                                    itemCount: messages.length,
-                                    itemBuilder: (context, index) {
-                                      final message = messages[index];
-                                      final isUser = message['sender'] == 'You';
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                                          children: [
-                                            if (!isUser)
-                                              const Icon(Icons.person, color: Colors.white, size: 16),
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding: const EdgeInsets.all(8.0),
-                                              decoration: BoxDecoration(
-                                                color: isUser ? Colors.blueAccent : Colors.grey,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                '${message['sender']}: ${message['text']}',
-                                                style: const TextStyle(color: Colors.white),
-                                              ),
-                                            ),
-                                            if (isUser)
-                                              const SizedBox(width: 8),
-                                            if (isUser)
-                                              const Icon(Icons.person, color: Colors.white, size: 16),
-                                          ],
-                                        ),
-                                      );
-                                    },
+                                ElevatedButton.icon(
+                                  onPressed: _openChatBox,
+                                  icon: const Icon(Icons.forum),
+                                  label: const Text("Open Chat"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: ChessEarnTheme.themeColors['brand-accent'],
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -827,10 +778,6 @@ class _GameScreenState extends State<GameScreen> {
         ),
       ),
     );
-  }
-
-  String _getCurrentFen() {
-    return 'rnbqkbnr/pppp1ppp/5n2/5p2/5P2/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2'; // Default FEN
   }
 
   @override

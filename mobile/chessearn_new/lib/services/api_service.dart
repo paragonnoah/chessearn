@@ -6,7 +6,7 @@ class ApiService {
   static const String baseUrl = 'https://v2.chessearn.com';
   static String? _accessToken;
   static String? _refreshToken;
-  static const bool useMockData = true; // Moved to const for consistency
+  static const bool useMockData = true;
   static const Duration _timeoutDuration = Duration(seconds: 30);
 
   static Future<void> initializeTokenStorage() async {
@@ -184,6 +184,67 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Failed to post game move: $e');
+    }
+  }
+
+  static Future<void> sendChatMessage(String fromUserId, String toUserId, String message) async {
+    try {
+      await http.post(
+        Uri.parse('$baseUrl/game/chat'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_accessToken',
+        },
+        body: jsonEncode({
+          'from': fromUserId,
+          'to': toUserId,
+          'message': message,
+        }),
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Chat message request timed out.');
+      });
+    } catch (e) {
+      // Optionally handle error for chat failure
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getChatMessages(String gameId) async {
+    if (useMockData) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return [
+        {
+          'from': 'You',
+          'to': 'Opponent',
+          'message': 'Good luck!',
+          'timestamp': DateTime.now().subtract(const Duration(minutes: 3)).toIso8601String(),
+        },
+        {
+          'from': 'Opponent',
+          'to': 'You',
+          'message': 'Thanks, you too!',
+          'timestamp': DateTime.now().subtract(const Duration(minutes: 2)).toIso8601String(),
+        },
+      ];
+    }
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/game/chat/$gameId'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+        },
+      ).timeout(_timeoutDuration, onTimeout: () {
+        throw Exception('Get chat messages request timed out.');
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data.cast<Map<String, dynamic>>();
+        }
+        throw Exception('Unexpected response format: ${response.body}');
+      }
+      throw Exception('Failed to fetch chat messages: ${response.statusCode} - ${response.body}');
+    } catch (e) {
+      throw Exception('Failed to fetch chat messages: $e');
     }
   }
 
@@ -552,8 +613,9 @@ class ApiService {
     required int baseTime,
     required int increment,
     required double betAmount,
+    bool playAgainstComputer = false,
   }) async {
-    if (useMockData) return 'mock_game_id'; // Mock for testing
+    if (useMockData) return 'mock_game_id';
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/game/create'),
@@ -566,13 +628,14 @@ class ApiService {
           'base_time': baseTime,
           'increment': increment,
           'bet_amount': betAmount,
+          'play_against_computer': playAgainstComputer,
         }),
       ).timeout(_timeoutDuration, onTimeout: () {
         throw Exception('Create game request timed out');
       });
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['game_id']?.toString() ?? ''; // Assuming backend returns game_id
+        return data['game_id']?.toString() ?? '';
       }
       throw Exception('Failed to create game: ${response.statusCode} - ${response.body}');
     } catch (e) {
@@ -581,7 +644,7 @@ class ApiService {
   }
 
   static Future<String> joinGame(String gameId) async {
-    if (useMockData) return gameId; // Mock return for testing
+    if (useMockData) return gameId;
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/game/join/$gameId'),
@@ -594,7 +657,7 @@ class ApiService {
       });
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['game_id']?.toString() ?? gameId; // Return game_id if provided, otherwise use input
+        return data['game_id']?.toString() ?? gameId;
       }
       throw Exception('Failed to join game: ${response.statusCode} - ${response.body}');
     } catch (e) {
@@ -602,7 +665,6 @@ class ApiService {
     }
   }
 
-  // Placeholder for fetching available games (to be implemented based on backend)
   static Future<List<Map<String, dynamic>>> getAvailableGames() async {
     if (useMockData) {
       return [

@@ -9,6 +9,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_chess_board: ^1.0.1
+  emoji_picker_flutter: ^4.3.0
   chess: ^0.8.1
   stockfish: ^1.7.0
   http: ^1.2.2

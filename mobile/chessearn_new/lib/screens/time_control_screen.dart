@@ -19,6 +19,9 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
   late Animation<double> _scaleAnimation;
   bool _isLoading = false;
 
+  // New: Track selected game mode
+  String _selectedGameMode = 'online'; // online, computer, etc.
+
   @override
   void initState() {
     super.initState();
@@ -30,14 +33,14 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
     );
-    
+
     _fadeController.forward();
     _scaleController.forward();
   }
@@ -49,24 +52,27 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
     super.dispose();
   }
 
-  Future<void> _startGame() async {
+  Future<void> _startGame({String playMode = 'online'}) async {
     setState(() {
       _isLoading = true;
     });
-    
     try {
       // Parse time control into baseTime and increment
       final parts = _selectedTimeControl.split('|');
-      int baseTime = int.parse(parts[0]);
-      int increment = parts.length > 1 ? int.parse(parts[1].replaceAll('d', '')) : 0;
+      int baseTime = int.tryParse(parts[0].replaceAll('d', '')) ?? 0;
+      int increment = parts.length > 1 ? int.tryParse(parts[1].replaceAll('d', '')) ?? 0 : 0;
       bool isDaily = _selectedTimeControl.contains('d');
+
+      // For bot/AI, always unrated, otherwise rated
+      bool isRated = playMode != 'computer';
 
       // Create game using ApiService with named parameters
       String gameId = await ApiService.createGame(
-        isRated: true, // Default to rated, can be made configurable
-        baseTime: isDaily ? 0 : baseTime, // Adjust for daily games
+        isRated: isRated,
+        baseTime: isDaily ? 0 : baseTime,
         increment: isDaily ? 0 : increment,
-        betAmount: 0.0, // Default bet amount, can be made configurable
+        betAmount: 0.0,
+        playAgainstComputer: playMode == 'computer', // Custom param for your API, update as needed
       );
 
       Navigator.push(
@@ -74,9 +80,9 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
         MaterialPageRoute(
           builder: (context) => GameScreen(
             userId: widget.userId,
-            initialPlayMode: 'online', // Default to online mode
+            initialPlayMode: playMode,
             timeControl: _selectedTimeControl,
-            gameId: gameId, // Pass the created gameId
+            gameId: gameId,
           ),
         ),
       );
@@ -95,6 +101,8 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
       });
     }
   }
+
+  // You can call _startGame(playMode: 'computer') to play with bot/AI
 
   @override
   Widget build(BuildContext context) {
@@ -144,19 +152,12 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Hero section with chess icon
                       _buildHeroSection(),
                       const SizedBox(height: 32),
-                      
-                      // Time control selection
                       _buildTimeControlCard(),
                       const SizedBox(height: 24),
-                      
-                      // Start Game button
                       _buildStartGameButton(),
                       const SizedBox(height: 32),
-                      
-                      // Game modes section
                       _buildGameModesSection(),
                     ],
                   ),
@@ -320,7 +321,7 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: _isLoading ? null : _startGame,
+          onTap: _isLoading ? null : () => _startGame(playMode: 'online'),
           child: Center(
             child: _isLoading
                 ? const SizedBox(
@@ -392,43 +393,9 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
           title: 'Play a Bot',
           subtitle: 'Practice against AI',
           color: Colors.blue,
-          onTap: () async {
-            setState(() {
-              _isLoading = true;
-            });
-            try {
-              String gameId = await ApiService.createGame(
-                isRated: false,
-                baseTime: 5,
-                increment: 0,
-                betAmount: 0.0,
-              );
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => GameScreen(
-                    userId: widget.userId,
-                    initialPlayMode: 'computer',
-                    timeControl: _selectedTimeControl,
-                    gameId: gameId,
-                  ),
-                ),
-              );
-            } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to start bot game: $e'),
-                  backgroundColor: Colors.red.shade700,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              );
-            } finally {
-              setState(() {
-                _isLoading = false;
-              });
-            }
-          },
+          onTap: _isLoading
+              ? null
+              : () => _startGame(playMode: 'computer'), // <--- Play with AI/Bot
         ),
         _buildOptionCard(
           icon: Icons.school,
@@ -450,7 +417,7 @@ class _TimeControlScreenState extends State<TimeControlScreen> with TickerProvid
     required String title,
     required String subtitle,
     required Color color,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

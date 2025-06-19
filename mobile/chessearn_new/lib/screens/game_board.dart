@@ -222,6 +222,7 @@ class GameBoardState extends State<GameBoard> {
   @override
   Widget build(BuildContext context) {
     final effectiveBoardSize = widget.boardSize ?? MediaQuery.of(context).size.width * 0.9;
+    final squareSize = effectiveBoardSize / 8;
     return Material(
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
@@ -234,49 +235,54 @@ class GameBoardState extends State<GameBoard> {
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTapDown: (details) {
-                final renderBox = context.findRenderObject() as RenderBox?;
-                if (renderBox == null) return;
-                final position = renderBox.globalToLocal(details.globalPosition);
-                final squareSize = effectiveBoardSize / 8;
-                final file = (position.dx / squareSize).floor();
-                final rank = 7 - (position.dy / squareSize).floor();
-                if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
-                  final square = String.fromCharCode('a'.codeUnitAt(0) + file) + (rank + 1).toString();
-                  _handleSquareTap(square);
-                }
-              },
-              child: ChessBoard(
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Stack(
+            children: [
+              ChessBoard(
                 controller: _controller,
                 boardColor: widget.boardColor,
                 size: effectiveBoardSize,
                 enableUserMoves: false,
                 onMove: null,
               ),
-            ),
-            if (widget.showLegalMoves && _legalDestinations.isNotEmpty)
-              ..._legalDestinations.map((square) {
-                if (square.length < 2) return const SizedBox.shrink();
-                final file = square[0].codeUnitAt(0) - 'a'.codeUnitAt(0);
-                final rank = int.parse(square[1]) - 1;
-                final squareSize = effectiveBoardSize / 8;
-                return Positioned(
-                  left: file * squareSize + squareSize * 0.4,
-                  top: (7 - rank) * squareSize + squareSize * 0.4,
-                  child: Container(
-                    width: squareSize * 0.2,
-                    height: squareSize * 0.2,
-                    decoration: const BoxDecoration(
-                      color: Colors.blueAccent,
-                      shape: BoxShape.circle,
+              if (widget.showLegalMoves && _legalDestinations.isNotEmpty)
+                ..._legalDestinations.map((square) {
+                  if (square.length < 2) return const SizedBox.shrink();
+                  final file = square[0].codeUnitAt(0) - 'a'.codeUnitAt(0);
+                  final rank = int.parse(square[1]) - 1;
+                  return Positioned(
+                    left: file * squareSize + squareSize * 0.4,
+                    top: (7 - rank) * squareSize + squareSize * 0.4,
+                    child: Container(
+                      width: squareSize * 0.2,
+                      height: squareSize * 0.2,
+                      decoration: const BoxDecoration(
+                        color: Colors.blueAccent,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                );
-              }),
-          ],
+                  );
+                }),
+              // Tap handler overlay
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTapDown: (details) {
+                    final renderBox = context.findRenderObject() as RenderBox?;
+                    if (renderBox == null) return;
+                    final position = renderBox.globalToLocal(details.globalPosition);
+                    final file = (position.dx / squareSize).floor();
+                    final rank = 7 - (position.dy / squareSize).floor();
+                    if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
+                      final square = String.fromCharCode('a'.codeUnitAt(0) + file) + (rank + 1).toString();
+                      _handleSquareTap(square);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

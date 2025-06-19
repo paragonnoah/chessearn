@@ -15,7 +15,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   String loginMethod = 'username';
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -25,16 +25,34 @@ class _LoginScreenState extends State<LoginScreen> {
   String errorMessage = '';
   bool isLoading = false;
 
+  late AnimationController _animController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _pulseAnimation;
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
   @override
   void initState() {
     super.initState();
-    ApiService.initializeTokenStorage(); // Call the method to initialize tokens
+    ApiService.initializeTokenStorage();
+
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 1300),
+      vsync: this,
+    )..forward();
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    );
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.09).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+    _animController.repeat(reverse: true);
   }
 
   Future<void> _login() async {
-    // DEV BYPASS: Instantly login as paragonnoah if using username
     if (loginMethod == 'username' && _usernameController.text.trim() == 'paragonnoah') {
       Navigator.pushReplacement(
         context,
@@ -100,7 +118,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _googleLogin() async {
-    // Note: Google login endpoint not provided, placeholder implementation
     setState(() {
       isLoading = true;
       errorMessage = '';
@@ -113,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final idToken = authHeaders['Authorization']?.split(' ')[1];
         if (idToken != null) {
           final response = await http.post(
-            Uri.parse('${ApiService.baseUrl}/google/mobile'), // Placeholder endpoint
+            Uri.parse('${ApiService.baseUrl}/google/mobile'),
             headers: {'Content-Type': 'application/json'},
             body: json.jsonEncode({'id_token': idToken}),
           );
@@ -143,146 +160,288 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
+  void dispose() {
+    _animController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = ChessEarnTheme.themeColors;
     return Scaffold(
-      appBar: AppBar(title: const Text('Log In')),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              ChessEarnTheme.themeColors['brand-gradient-start']!,
-              ChessEarnTheme.themeColors['brand-gradient-end']!,
+              theme['brand-gradient-start']!,
+              theme['brand-gradient-end']!,
+              theme['brand-dark']!,
             ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            stops: const [0.0, 0.6, 1.0],
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Log In to ChessEarn', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-                const SizedBox(height: 30),
-                DropdownButton<String>(
-                  value: loginMethod,
-                  items: ['username', 'email', 'phone', 'social'].map((String value) => DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value.toUpperCase()),
-                  )).toList(),
-                  onChanged: (String? newValue) => setState(() => loginMethod = newValue!),
-                  dropdownColor: ChessEarnTheme.themeColors['surface-light']!.withOpacity(0.5),
-                  style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
-                ),
-                const SizedBox(height: 20),
-                if (loginMethod == 'username')
-                  TextField(
-                    controller: _usernameController,
-                    decoration: InputDecoration(
-                      labelText: 'Username',
-                      labelStyle: TextStyle(color: ChessEarnTheme.themeColors['text-muted']),
-                      filled: true,
-                      fillColor: ChessEarnTheme.themeColors['surface-light']!.withOpacity(0.3),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                    ),
-                    style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
-                  ),
-                if (loginMethod == 'email')
-                  TextField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      labelStyle: TextStyle(color: ChessEarnTheme.themeColors['text-muted']),
-                      filled: true,
-                      fillColor: ChessEarnTheme.themeColors['surface-light']!.withOpacity(0.3),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                    ),
-                    style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
-                  ),
-                if (loginMethod == 'phone')
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: MediaQuery.of(context).size.width * 0.3,
-                        child: CountryCodePicker(
-                          onChanged: (code) => setState(() => countryCode = code.dialCode!),
-                          initialSelection: 'KE',
-                          favorite: const ['+254'],
-                          showCountryOnly: false,
-                          showOnlyCountryWhenClosed: false,
-                          alignLeft: false,
-                        ),
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: _phoneController,
-                          decoration: InputDecoration(
-                            labelText: 'Phone Number',
-                            labelStyle: TextStyle(color: ChessEarnTheme.themeColors['text-muted']),
-                            filled: true,
-                            fillColor: ChessEarnTheme.themeColors['surface-light']!.withOpacity(0.3),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                          ),
-                          style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
-                          keyboardType: TextInputType.phone,
-                        ),
-                      ),
-                    ],
-                  ),
-                if (loginMethod != 'social')
-                  Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: _passwordController,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          labelStyle: TextStyle(color: ChessEarnTheme.themeColors['text-muted']),
-                          filled: true,
-                          fillColor: ChessEarnTheme.themeColors['surface-light']!.withOpacity(0.3),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                        ),
-                        obscureText: true,
-                        style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
-                      ),
-                    ],
-                  ),
-                if (errorMessage.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(errorMessage, style: TextStyle(color: ChessEarnTheme.themeColors['brand-danger'])),
-                  ),
-                const SizedBox(height: 20),
-                isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Column(
-                        children: [
-                          if (loginMethod == 'social')
-                            ElevatedButton(
-                              onPressed: _googleLogin,
-                              child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.g_mobiledata), SizedBox(width: 5), Text('Google', style: TextStyle(fontSize: 18))]),
-                            )
-                          else
-                            ElevatedButton(
-                              onPressed: _login,
-                              child: const Text('Log In', style: TextStyle(fontSize: 18)),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _pulseAnimation.value,
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme['brand-accent']!.withOpacity(0.3),
+                                  blurRadius: 30,
+                                  spreadRadius: 10,
+                                ),
+                              ],
                             ),
-                          TextButton(
-                            onPressed: () async {
-                              await ApiService.logout();
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-                            },
-                            child: Text('Log out (for testing)', style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'])),
+                            child: Icon(
+                              Icons.sports_esports_rounded,
+                              size: 60,
+                              color: theme['brand-accent'],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    ShaderMask(
+                      shaderCallback: (bounds) => LinearGradient(
+                        colors: [
+                          theme['text-light']!,
+                          theme['brand-accent']!,
+                        ],
+                      ).createShader(bounds),
+                      child: const Text(
+                        'ChessEarn',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Welcome Back! Log in to your account.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: theme['text-muted'],
+                        fontWeight: FontWeight.w400,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Login Method Selector
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: theme['surface-light']!.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withOpacity(0.15)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: loginMethod,
+                          items: [
+                            _buildLoginMethodItem('username', Icons.person_outline),
+                            _buildLoginMethodItem('email', Icons.mail_outline),
+                            _buildLoginMethodItem('phone', Icons.phone_iphone),
+                            _buildLoginMethodItem('social', Icons.g_mobiledata),
+                          ],
+                          onChanged: (String? newValue) => setState(() => loginMethod = newValue!),
+                          dropdownColor: theme['surface-light']!.withOpacity(0.97),
+                          icon: Icon(Icons.arrow_drop_down, color: theme['text-light']),
+                          style: TextStyle(color: theme['text-light'], fontSize: 15),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Input fields
+                    if (loginMethod == 'username')
+                      _buildInputField(
+                        controller: _usernameController,
+                        label: 'Username',
+                        icon: Icons.person_outline,
+                        isPassword: false,
+                        theme: theme,
+                      ),
+                    if (loginMethod == 'email')
+                      _buildInputField(
+                        controller: _emailController,
+                        label: 'Email',
+                        icon: Icons.mail_outline,
+                        isPassword: false,
+                        theme: theme,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    if (loginMethod == 'phone')
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.28,
+                            child: CountryCodePicker(
+                              onChanged: (code) => setState(() => countryCode = code.dialCode!),
+                              initialSelection: 'KE',
+                              favorite: const ['+254'],
+                              showCountryOnly: false,
+                              showOnlyCountryWhenClosed: false,
+                              alignLeft: false,
+                              dialogBackgroundColor: theme['surface-card'],
+                              textStyle: TextStyle(color: theme['text-light']),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildInputField(
+                              controller: _phoneController,
+                              label: 'Phone Number',
+                              icon: Icons.phone,
+                              isPassword: false,
+                              theme: theme,
+                              keyboardType: TextInputType.phone,
+                            ),
                           ),
                         ],
                       ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupScreen())),
-                  child: Text('Don’t have an account? Sign up', style: TextStyle(color: ChessEarnTheme.themeColors['text-muted'])),
+                    if (loginMethod != 'social')
+                      Column(
+                        children: [
+                          const SizedBox(height: 18),
+                          _buildInputField(
+                            controller: _passwordController,
+                            label: 'Password',
+                            icon: Icons.lock_outline,
+                            isPassword: true,
+                            theme: theme,
+                          ),
+                        ],
+                      ),
+
+                    if (errorMessage.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(errorMessage, style: TextStyle(color: theme['brand-danger'], fontWeight: FontWeight.w600)),
+                      ),
+                    const SizedBox(height: 28),
+
+                    // Login & Google Buttons
+                    isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Column(
+                            children: [
+                              if (loginMethod == 'social')
+                                _buildLoginButton(
+                                  text: 'Continue with Google',
+                                  icon: Icons.g_mobiledata,
+                                  onPressed: _googleLogin,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.red.shade300,
+                                      theme['brand-accent']!.withOpacity(0.8),
+                                    ],
+                                  ),
+                                  theme: theme,
+                                )
+                              else
+                                _buildLoginButton(
+                                  text: 'Log In',
+                                  icon: Icons.login_rounded,
+                                  onPressed: _login,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      theme['brand-accent']!,
+                                      theme['btn-primary-hover']!,
+                                    ],
+                                  ),
+                                  theme: theme,
+                                ),
+                            ],
+                          ),
+                    const SizedBox(height: 18),
+                    TextButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupScreen())),
+                      child: Text('Don’t have an account? Sign up', style: TextStyle(color: theme['text-muted'])),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await ApiService.logout();
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                      },
+                      child: Text('Log out (for testing)', style: TextStyle(color: theme['text-muted'])),
+                    ),
+                    const SizedBox(height: 16),
+                    // Guest Play Button with Pulse Animation
+                    AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _pulseAnimation.value,
+                          child: Container(
+                            width: double.infinity,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: theme['brand-accent']!,
+                                width: 2,
+                              ),
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.transparent,
+                                  theme['brand-accent']!.withOpacity(0.11),
+                                ],
+                              ),
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const MainScreen(userId: null)),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: theme['brand-accent'],
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                              label: const Text(
+                                'Try as Guest',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -290,12 +449,91 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  DropdownMenuItem<String> _buildLoginMethodItem(String value, IconData icon) {
+    return DropdownMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, color: ChessEarnTheme.themeColors['brand-accent'], size: 18),
+          const SizedBox(width: 8),
+          Text(value.toUpperCase(), style: TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required bool isPassword,
+    required Map<String, Color?> theme,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        style: TextStyle(color: theme['text-light']),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: theme['brand-accent']),
+          labelStyle: TextStyle(color: theme['text-muted']),
+          filled: true,
+          fillColor: theme['surface-light']!.withOpacity(0.25),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton({
+    required String text,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required LinearGradient gradient,
+    required Map<String, Color?> theme,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: 54,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: gradient,
+        boxShadow: [
+          BoxShadow(
+            color: theme['brand-accent']!.withOpacity(0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        icon: Icon(icon, size: 21),
+        label: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.0,
+          ),
+        ),
+      ),
+    );
   }
 }

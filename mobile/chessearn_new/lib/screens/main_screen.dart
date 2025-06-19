@@ -34,6 +34,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   bool _isLoadingFriends = true;
   bool _isLoadingBalance = true;
   bool _hasNotifications = false; // Dynamic notification state
+  List<Map<String, dynamic>> _notifications = [];
 
   @override
   void initState() {
@@ -117,11 +118,13 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     try {
       final notifications = await ApiService.getNotifications(widget.userId);
       setState(() {
+        _notifications = notifications;
         _hasNotifications = notifications.any((n) => !(n['isRead'] ?? true));
       });
     } catch (e) {
       print('Failed to fetch notifications: $e');
       setState(() {
+        _notifications = [];
         _hasNotifications = false;
       });
     }
@@ -160,6 +163,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     setState(() {
       _selectedIndex = index;
     });
+    if (index == 0) { // Home tab
+      _fetchWalletBalance();
+    }
     String tabName = ['Home', 'Puzzles', 'Learn', 'Watch', 'More'][index];
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -296,248 +302,251 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   Widget _buildHomeTab() {
     return Stack(
       children: [
-        CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: 280,
-              backgroundColor: ChessEarnTheme.getColor('brand-dark'),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            ChessEarnTheme.getColor('brand-dark'),
-                            ChessEarnTheme.getColor('brand-accent').withOpacity(0.8),
-                          ],
+        RefreshIndicator(
+          onRefresh: _fetchWalletBalance,
+          child: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                pinned: true,
+                expandedHeight: 280,
+                backgroundColor: ChessEarnTheme.getColor('brand-dark'),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              ChessEarnTheme.getColor('brand-dark'),
+                              ChessEarnTheme.getColor('brand-accent').withOpacity(0.8),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'ChessEarn',
-                                      style: ChessEarnTheme.themeData.textTheme.headlineLarge?.copyWith(
-                                        color: ChessEarnTheme.getColor('text-light'),
-                                        fontSize: 36,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -1,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Play • Learn • Earn',
-                                      style: ChessEarnTheme.themeData.textTheme.bodyLarge?.copyWith(
-                                        color: ChessEarnTheme.getColor('text-light').withOpacity(0.8),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => NotificationsMoreScreen(userId: widget.userId),
-                                      ),
-                                    ).then((_) => _fetchNotifications()); // Refresh notifications
-                                  },
-                                  child: Stack(
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: Colors.white.withOpacity(0.2),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.notifications_outlined,
+                                      Text(
+                                        'ChessEarn',
+                                        style: ChessEarnTheme.themeData.textTheme.headlineLarge?.copyWith(
                                           color: ChessEarnTheme.getColor('text-light'),
-                                          size: 24,
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: -1,
                                         ),
                                       ),
-                                      if (_hasNotifications)
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: Container(
-                                            width: 8,
-                                            height: 8,
-                                            decoration: const BoxDecoration(
-                                              color: Colors.red,
-                                              shape: BoxShape.circle,
+                                      Text(
+                                        'Play • Learn • Earn',
+                                        style: ChessEarnTheme.themeData.textTheme.bodyLarge?.copyWith(
+                                          color: ChessEarnTheme.getColor('text-light').withOpacity(0.8),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => NotificationsMoreScreen(userId: widget.userId),
+                                        ),
+                                      ).then((_) => _fetchNotifications()); // Refresh notifications
+                                    },
+                                    child: Stack(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.2),
+                                              width: 1,
                                             ),
                                           ),
+                                          child: Icon(
+                                            Icons.notifications_outlined,
+                                            color: ChessEarnTheme.getColor('text-light'),
+                                            size: 24,
+                                          ),
                                         ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            if (widget.userId == null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                                ),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const HomeScreen()),
-                                    );
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.person_outline, color: Colors.orange, size: 16),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Playing as Guest - Sign up to earn!',
-                                        style: ChessEarnTheme.themeData.textTheme.bodySmall?.copyWith(
-                                          color: Colors.orange,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            const Spacer(),
-                            Hero(
-                              tag: 'wallet_balance',
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => WalletScreen(userId: widget.userId),
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(
-                                          Icons.account_balance_wallet_outlined,
-                                          color: ChessEarnTheme.getColor('text-light'),
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Wallet Balance',
-                                              style: ChessEarnTheme.themeData.textTheme.bodyMedium?.copyWith(
-                                                color: ChessEarnTheme.getColor('text-light').withOpacity(0.8),
+                                        if (_hasNotifications)
+                                          Positioned(
+                                            top: 8,
+                                            right: 8,
+                                            child: Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
                                               ),
                                             ),
-                                            _isLoadingBalance
-                                                ? SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: ChessEarnTheme.getColor('text-light'),
-                                                    ),
-                                                  )
-                                                : Text(
-                                                    '${_walletBalance.toStringAsFixed(2)} Credits',
-                                                    style: ChessEarnTheme.themeData.textTheme.titleLarge?.copyWith(
-                                                      color: ChessEarnTheme.getColor('text-light'),
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                          ],
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (widget.userId == null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                      );
+                                    },
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.person_outline, color: Colors.orange, size: 16),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Playing as Guest - Sign up to earn!',
+                                          style: ChessEarnTheme.themeData.textTheme.bodySmall?.copyWith(
+                                            color: Colors.orange,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              const Spacer(),
+                              Hero(
+                                tag: 'wallet_balance',
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => WalletScreen(userId: widget.userId),
                                       ),
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        // ignore: deprecated_member_use
-                                        color: ChessEarnTheme.getColor('text-light').withOpacity(0.6),
-                                        size: 16,
-                                      ),
-                                    ],
+                                    );
+                                    _fetchWalletBalance(); // Refresh after coming back from Wallet
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 20,
+                                          offset: const Offset(0, 10),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Icon(
+                                            Icons.account_balance_wallet_outlined,
+                                            color: ChessEarnTheme.getColor('text-light'),
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Wallet Balance',
+                                                style: ChessEarnTheme.themeData.textTheme.bodyMedium?.copyWith(
+                                                  color: ChessEarnTheme.getColor('text-light').withOpacity(0.8),
+                                                ),
+                                              ),
+                                              _isLoadingBalance
+                                                  ? SizedBox(
+                                                      width: 20,
+                                                      height: 20,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: ChessEarnTheme.getColor('text-light'),
+                                                      ),
+                                                    )
+                                                  : Text(
+                                                      '${_walletBalance.toStringAsFixed(2)} Credits',
+                                                      style: ChessEarnTheme.themeData.textTheme.titleLarge?.copyWith(
+                                                        color: ChessEarnTheme.getColor('text-light'),
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                            ],
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.arrow_forward_ios,
+                                          color: ChessEarnTheme.getColor('text-light').withOpacity(0.6),
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatsRow(),
-                    const SizedBox(height: 24),
-                    _buildGameActionsGrid(),
-                    const SizedBox(height: 24),
-                    _buildSectionTitle('Live Games'),
-                    _buildLiveGamePreview(),
-                    const SizedBox(height: 24),
-                    _buildSectionTitle('Daily Challenge'),
-                    _buildDailyPuzzleCard(),
-                    const SizedBox(height: 24),
-                    _buildSectionTitle('Friends Online'),
-                    _buildFriendsList(),
-                    const SizedBox(height: 100),
-                  ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatsRow(),
+                      const SizedBox(height: 24),
+                      _buildGameActionsGrid(),
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('Live Games'),
+                      _buildLiveGamePreview(),
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('Daily Challenge'),
+                      _buildDailyPuzzleCard(),
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('Friends Online'),
+                      _buildFriendsList(),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         Align(
           alignment: Alignment.topCenter,
@@ -555,6 +564,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     );
   }
 
+  
   Widget _buildStatsRow() {
     return Row(
       children: [

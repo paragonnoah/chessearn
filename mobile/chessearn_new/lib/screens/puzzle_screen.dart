@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:chessearn_new/theme.dart';
+import 'game_board.dart';
+import 'package:chess/chess.dart' as chess;
 import 'dart:async';
 import 'dart:math';
 
@@ -16,7 +18,6 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
   late AnimationController _animationController;
   late AnimationController _progressController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
   late Animation<double> _progressAnimation;
 
   int userXP = 0;
@@ -25,17 +26,21 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
   bool isPuzzleActive = false;
   bool isPuzzleSolved = false;
   bool showHint = false;
-  String? currentPuzzleFen = 'rnbqkbnr/pppp1ppp/5n2/5p2/5P2/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2'; // Example FEN
+
+  String? currentPuzzleFen =
+      'rnbqkbnr/pppp1ppp/5n2/5p2/5P2/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2'; // Example FEN
   String? solutionMove = 'Nf3'; // Example solution
   String? hintText = 'Consider moving a knight to attack the center.';
-  int selectedPieceIndex = -1;
 
   Timer? _dailyUpdateTimer;
   final Random _random = Random();
 
+  late chess.Chess _chess;
+
   @override
   void initState() {
     super.initState();
+    _chess = chess.Chess.fromFEN(currentPuzzleFen ?? chess.Chess.DEFAULT_POSITION);
     _initializeAnimations();
     _startDailyUpdates();
   }
@@ -50,9 +55,6 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _progressAnimation = Tween<double>(begin: 0.0, end: puzzlesSolved / 10).animate(
@@ -89,35 +91,45 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
       currentAttempts = 3;
       isPuzzleSolved = false;
       showHint = false;
-      // Reset puzzle state (e.g., new FEN and solution could be fetched from an API)
+      _chess = chess.Chess.fromFEN(currentPuzzleFen ?? chess.Chess.DEFAULT_POSITION);
     });
   }
 
-  void _checkMove(String move) {
-    if (move == solutionMove) {
+  void _onUserMove(String from, String to, String san) {
+    if (!isPuzzleActive || isPuzzleSolved) return;
+
+    _chess.move({'from': from, 'to': to});
+    if (san == solutionMove) {
       setState(() {
         isPuzzleSolved = true;
         puzzlesSolved++;
         userXP += 25;
-        currentAttempts = 3; // Reset attempts
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Puzzle Solved! +25 XP')),
-        );
+        currentAttempts = 3;
       });
+      _showSnackbar('Puzzle Solved! +25 XP');
     } else if (currentAttempts > 1) {
       setState(() {
         currentAttempts--;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Incorrect move. $currentAttempts attempts left.')),
-        );
       });
+      _showSnackbar('Incorrect move. $currentAttempts attempts left.');
+      Future.delayed(const Duration(milliseconds: 600), () => _makeAIMove());
     } else {
       setState(() {
         isPuzzleActive = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Puzzle failed. Solution: $solutionMove')),
-        );
       });
+      _showSnackbar('Puzzle failed. Solution: $solutionMove');
+    }
+    setState(() {});
+  }
+
+  void _makeAIMove() {
+    if (_chess.game_over) return;
+    final moves = List<Map<String, dynamic>>.from(_chess.generate_moves({'verbose': true}));
+    if (moves.isNotEmpty) {
+      final move = moves[_random.nextInt(moves.length)];
+      _chess.move({'from': move['from'], 'to': move['to']});
+      setState(() {});
+      _showSnackbar("AI played: ${move['san']}");
     }
   }
 
@@ -127,30 +139,39 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
     });
   }
 
+  void _showSnackbar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            ChessEarnTheme.themeColors['brand-gradient-start']!,
-            ChessEarnTheme.themeColors['brand-gradient-end']!,
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildProgressSection(),
-              _buildPuzzleArea(),
-              if (isPuzzleActive) _buildPuzzleControls(),
-              const SizedBox(height: 20),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              ChessEarnTheme.themeColors['brand-gradient-start']!,
+              ChessEarnTheme.themeColors['brand-gradient-end']!,
             ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  _buildProgressSection(),
+                  _buildPuzzleArea(),
+                  if (isPuzzleActive) _buildPuzzleControls(),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -385,14 +406,13 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
           else
             Column(
               children: [
-                Container(
-                  height: 200,
-                  color: Colors.grey[800],
-                  child: Center(
-                    child: Text(
-                      'Chess Board (FEN: $currentPuzzleFen)',
-                      style: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
-                    ),
+                SizedBox(
+                  height: 320,
+                  child: GameBoard(
+                    initialFen: _chess.fen,
+                    enableUserMoves: isPuzzleActive && !isPuzzleSolved,
+                    showLegalMoves: true,
+                    onMove: (from, to, san) => _onUserMove(from, to, san),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -447,7 +467,21 @@ class _PuzzleScreenState extends State<PuzzleScreen> with TickerProviderStateMix
               labelStyle: TextStyle(color: ChessEarnTheme.themeColors['text-light']),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            onSubmitted: _checkMove,
+            onSubmitted: (moveSan) {
+              final legalMoves = List<Map<String, dynamic>>.from(_chess.generate_moves({'verbose': true}));
+              Map<String, dynamic>? found;
+              for (final m in legalMoves) {
+                if (m['san'] == moveSan) {
+                  found = m;
+                  break;
+                }
+              }
+              if (found != null) {
+                _onUserMove(found['from'], found['to'], found['san']);
+              } else {
+                _showSnackbar('Invalid move or format.');
+              }
+            },
           ),
         ],
       ),
